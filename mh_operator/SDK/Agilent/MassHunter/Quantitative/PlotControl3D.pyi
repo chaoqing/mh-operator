@@ -1,0 +1,377 @@
+# -*- coding: utf-8 -*-
+import typing
+
+# Import specific members from typing used in hints
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    FrozenSet,
+    Generic,
+    Iterable,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    TypeVar,
+    Union,
+    overload,
+)
+
+import datetime
+from enum import Enum
+
+import Agilent
+import System
+
+# Stubs for namespace: Agilent.MassHunter.Quantitative.PlotControl3D
+
+class Bar3D(Agilent.MassHunter.Quantitative.PlotControl3D.Mesh3D):  # Class
+    def __init__(
+        self, x0: float, y0: float, z0: float, W: float, L: float, H: float
+    ) -> None: ...
+    def SetMesh(self) -> None: ...
+    def SetData(
+        self, x0: float, y0: float, z0: float, W: float, L: float, H: float
+    ) -> None: ...
+
+class Chart3D:  # Class
+    def __init__(self) -> None: ...
+
+    SHAPE_NO: int  # static
+    m_axisColor: System.Windows.Media.Color
+
+    def __getitem__(
+        self, n: int
+    ) -> Agilent.MassHunter.Quantitative.PlotControl3D.Vertex3D: ...
+    def __setitem__(
+        self, n: int, value_: Agilent.MassHunter.Quantitative.PlotControl3D.Vertex3D
+    ) -> None: ...
+    def ZMin(self) -> float: ...
+    def AddAxesMeshes(self, meshs: System.Collections.ArrayList) -> None: ...
+    def HighlightSelection(
+        self,
+        meshGeometry: System.Windows.Media.Media3D.MeshGeometry3D,
+        selectColor: System.Windows.Media.Color,
+    ) -> None: ...
+    def XMin(self) -> float: ...
+    def YCenter(self) -> float: ...
+    def ZRange(self) -> float: ...
+    @overload
+    def SetAxes(
+        self, x0: float, y0: float, z0: float, xL: float, yL: float, zL: float
+    ) -> None: ...
+    @overload
+    def SetAxes(self) -> None: ...
+    @overload
+    def SetAxes(self, margin: float) -> None: ...
+    def YRange(self) -> float: ...
+    def GetDataRange(self) -> None: ...
+    def XRange(self) -> float: ...
+    def YMax(self) -> float: ...
+    def Select(
+        self,
+        rect: Agilent.MassHunter.Quantitative.PlotControl3D.ViewportRect,
+        matrix: Agilent.MassHunter.Quantitative.PlotControl3D.TransformMatrix,
+        viewport3d: System.Windows.Controls.Viewport3D,
+    ) -> None: ...
+    def XCenter(self) -> float: ...
+    def YMin(self) -> float: ...
+    def GetDataNo(self) -> int: ...
+    def ZMax(self) -> float: ...
+    def XMax(self) -> float: ...
+    def SetDataNo(self, nSize: int) -> None: ...
+
+    # Nested Types
+
+    class SHAPE(System.IConvertible, System.IComparable, System.IFormattable):  # Struct
+        BAR: Agilent.MassHunter.Quantitative.PlotControl3D.Chart3D.SHAPE = (
+            ...
+        )  # static # readonly
+        CONE: Agilent.MassHunter.Quantitative.PlotControl3D.Chart3D.SHAPE = (
+            ...
+        )  # static # readonly
+        CYLINDER: Agilent.MassHunter.Quantitative.PlotControl3D.Chart3D.SHAPE = (
+            ...
+        )  # static # readonly
+        ELLIPSE: Agilent.MassHunter.Quantitative.PlotControl3D.Chart3D.SHAPE = (
+            ...
+        )  # static # readonly
+        PYRAMID: Agilent.MassHunter.Quantitative.PlotControl3D.Chart3D.SHAPE = (
+            ...
+        )  # static # readonly
+
+class ColorMesh3D(Agilent.MassHunter.Quantitative.PlotControl3D.Mesh3D):  # Class
+    def __init__(self) -> None: ...
+    def GetColor(self, nV: int) -> System.Windows.Media.Color: ...
+    def SetVertexNo(self, nSize: int) -> None: ...
+    @overload
+    def SetColor(self, nV: int, r: int, g: int, b: int) -> None: ...
+    @overload
+    def SetColor(self, nV: int, color: System.Windows.Media.Color) -> None: ...
+
+class Cone3D(Agilent.MassHunter.Quantitative.PlotControl3D.Mesh3D):  # Class
+    def __init__(self, a: float, b: float, h: float, nRes: int) -> None: ...
+
+class Cylinder3D(Agilent.MassHunter.Quantitative.PlotControl3D.Mesh3D):  # Class
+    def __init__(self, a: float, b: float, h: float, nRes: int) -> None: ...
+
+class Ellipse3D(Agilent.MassHunter.Quantitative.PlotControl3D.Mesh3D):  # Class
+    def __init__(self, a: float, b: float, h: float, nRes: int) -> None: ...
+
+class Mesh3D:  # Class
+    def __init__(self) -> None: ...
+
+    m_xMax: float
+    m_xMin: float
+    m_yMax: float
+    m_yMin: float
+    m_zMax: float
+    m_zMin: float
+
+    @overload
+    def SetPoint(self, n: int, pt: System.Windows.Media.Media3D.Point3D) -> None: ...
+    @overload
+    def SetPoint(self, n: int, x: float, y: float, z: float) -> None: ...
+    @overload
+    def SetColor(self, r: int, g: int, b: int) -> None: ...
+    @overload
+    def SetColor(self, color: System.Windows.Media.Color) -> None: ...
+    def SetSize(self, nVertexNo: int, nTriangleNo: int) -> None: ...
+    def GetTriangle(
+        self, n: int
+    ) -> Agilent.MassHunter.Quantitative.PlotControl3D.Triangle3D: ...
+    def GetTriangleNo(self) -> int: ...
+    def GetPoint(self, n: int) -> System.Windows.Media.Media3D.Point3D: ...
+    def GetColor(self, nV: int) -> System.Windows.Media.Color: ...
+    def SetVertexNo(self, nSize: int) -> None: ...
+    def GetTriangleNormal(self, n: int) -> System.Windows.Media.Media3D.Vector3D: ...
+    @overload
+    def SetTriangle(
+        self, n: int, triangle: Agilent.MassHunter.Quantitative.PlotControl3D.Triangle3D
+    ) -> None: ...
+    @overload
+    def SetTriangle(self, i: int, m0: int, m1: int, m2: int) -> None: ...
+    def SetTriangleNo(self, nSize: int) -> None: ...
+    def UpdatePositions(
+        self, meshGeometry: System.Windows.Media.Media3D.MeshGeometry3D
+    ) -> None: ...
+    def SetTestModel(self) -> None: ...
+    def GetVertexNo(self) -> int: ...
+
+class Model3D(
+    System.Windows.Media.Animation.IAnimatable,
+    System.Windows.Media.Media3D.ModelVisual3D,
+    System.Windows.Media.Composition.DUCE.IResource,
+    MS.Internal.IVisual3DContainer,
+    System.Windows.Markup.IAddChild,
+):  # Class
+    def __init__(self) -> None: ...
+    def SetPsedoColor(self) -> None: ...
+    def SetRGBColor(self) -> None: ...
+    def UpdateModel(
+        self,
+        meshs: System.Collections.ArrayList,
+        backMaterial: System.Windows.Media.Media3D.Material,
+        nModelIndex: int,
+        viewport3d: System.Windows.Controls.Viewport3D,
+    ) -> int: ...
+    @staticmethod
+    def GetGeometry(
+        viewport3d: System.Windows.Controls.Viewport3D, nModelIndex: int
+    ) -> System.Windows.Media.Media3D.MeshGeometry3D: ...
+
+class Pyramid3D(Agilent.MassHunter.Quantitative.PlotControl3D.Mesh3D):  # Class
+    @overload
+    def __init__(self, size: float) -> None: ...
+    @overload
+    def __init__(self, W: float, L: float, H: float) -> None: ...
+    def SetData(self, W: float, L: float, H: float) -> None: ...
+
+class ScatterChart3D(Agilent.MassHunter.Quantitative.PlotControl3D.Chart3D):  # Class
+    def __init__(self) -> None: ...
+    def HighlightSelection(
+        self,
+        meshGeometry: System.Windows.Media.Media3D.MeshGeometry3D,
+        selectColor: System.Windows.Media.Color,
+    ) -> None: ...
+    def Get(
+        self, n: int
+    ) -> Agilent.MassHunter.Quantitative.PlotControl3D.ScatterPlotItem: ...
+    def GetMeshes(self) -> System.Collections.ArrayList: ...
+    def Select(
+        self,
+        rect: Agilent.MassHunter.Quantitative.PlotControl3D.ViewportRect,
+        matrix: Agilent.MassHunter.Quantitative.PlotControl3D.TransformMatrix,
+        viewport3d: System.Windows.Controls.Viewport3D,
+    ) -> None: ...
+    def SetVertex(
+        self,
+        n: int,
+        value_: Agilent.MassHunter.Quantitative.PlotControl3D.ScatterPlotItem,
+    ) -> None: ...
+
+class ScatterPlotItem(Agilent.MassHunter.Quantitative.PlotControl3D.Vertex3D):  # Class
+    def __init__(self) -> None: ...
+
+    h: float
+    shape: int
+    w: float
+
+class SurfaceChart3D(Agilent.MassHunter.Quantitative.PlotControl3D.Chart3D):  # Class
+    def __init__(self) -> None: ...
+    def HighlightSelection(
+        self,
+        meshGeometry: System.Windows.Media.Media3D.MeshGeometry3D,
+        selectColor: System.Windows.Media.Color,
+    ) -> None: ...
+    def Select(
+        self,
+        rect: Agilent.MassHunter.Quantitative.PlotControl3D.ViewportRect,
+        matrix: Agilent.MassHunter.Quantitative.PlotControl3D.TransformMatrix,
+        viewport3d: System.Windows.Controls.Viewport3D,
+    ) -> None: ...
+
+class TextureMapping:  # Class
+    def __init__(self) -> None: ...
+
+    m_material: System.Windows.Media.Media3D.DiffuseMaterial
+
+    @overload
+    @staticmethod
+    def GetMappingPosition(
+        color: System.Windows.Media.Color,
+    ) -> System.Windows.Point: ...
+    @overload
+    @staticmethod
+    def GetMappingPosition(
+        color: System.Windows.Media.Color, bPseudoColor: bool
+    ) -> System.Windows.Point: ...
+    @staticmethod
+    def PseudoColor(k: float) -> System.Windows.Media.Color: ...
+    def SetRGBMaping(self) -> None: ...
+    def SetPseudoMaping(self) -> None: ...
+
+class TransformMatrix:  # Class
+    def __init__(self) -> None: ...
+
+    m_scaleFactor: float
+    m_totalMatrix: System.Windows.Media.Media3D.Matrix3D
+
+    def RotateView(self, q: System.Windows.Media.Media3D.Quaternion) -> None: ...
+    def OnLBtnDown(self, pt: System.Windows.Point) -> None: ...
+    @overload
+    def CalculateProjectionMatrix(
+        self,
+        mesh: Agilent.MassHunter.Quantitative.PlotControl3D.Mesh3D,
+        scaleFactor: float,
+    ) -> None: ...
+    @overload
+    def CalculateProjectionMatrix(
+        self, min: float, max: float, scaleFactor: float
+    ) -> None: ...
+    @overload
+    def CalculateProjectionMatrix(
+        self,
+        xMin: float,
+        xMax: float,
+        yMin: float,
+        yMax: float,
+        zMin: float,
+        zMax: float,
+        scaleFactor: float,
+    ) -> None: ...
+    def OnMouseMove(
+        self, pt: System.Windows.Point, viewPort: System.Windows.Controls.Viewport3D
+    ) -> None: ...
+    def OnLBtnUp(self) -> None: ...
+    def OnKeyDown(self, args: System.Windows.Input.KeyEventArgs) -> None: ...
+    @overload
+    @staticmethod
+    def Transform(
+        pt1: System.Windows.Media.Media3D.Point3D,
+        center: System.Windows.Media.Media3D.Point3D,
+        aX: float,
+        aZ: float,
+    ) -> System.Windows.Media.Media3D.Point3D: ...
+    @overload
+    @staticmethod
+    def Transform(
+        model: Agilent.MassHunter.Quantitative.PlotControl3D.Mesh3D,
+        center: System.Windows.Media.Media3D.Point3D,
+        aX: float,
+        aZ: float,
+    ) -> None: ...
+    @staticmethod
+    def ScreenPtToViewportPt(
+        point: System.Windows.Point, viewPort: System.Windows.Controls.Viewport3D
+    ) -> System.Windows.Point: ...
+    def ResetView(self) -> None: ...
+    def VertexToScreenPt(
+        self,
+        point: System.Windows.Media.Media3D.Point3D,
+        viewPort: System.Windows.Controls.Viewport3D,
+    ) -> System.Windows.Point: ...
+    def VertexToViewportPt(
+        self,
+        point: System.Windows.Media.Media3D.Point3D,
+        viewPort: System.Windows.Controls.Viewport3D,
+    ) -> System.Windows.Point: ...
+
+class Triangle3D:  # Class
+    def __init__(self, m0: int, m1: int, m2: int) -> None: ...
+
+    n0: int
+    n1: int
+    n2: int
+
+class UniformSurfaceChart3D(
+    Agilent.MassHunter.Quantitative.PlotControl3D.SurfaceChart3D
+):  # Class
+    def __init__(self) -> None: ...
+    def SetPoint(self, i: int, j: int, x: float, y: float, z: float) -> None: ...
+    def SetColor(self, i: int, j: int, color: System.Windows.Media.Color) -> None: ...
+    def GetMeshes(self) -> System.Collections.ArrayList: ...
+    def SetGrid(
+        self, xNo: int, yNo: int, xMin: float, xMax: float, yMin: float, yMax: float
+    ) -> None: ...
+    def SetZ(self, i: int, j: int, z: float) -> None: ...
+
+class Vertex3D:  # Class
+    def __init__(self) -> None: ...
+
+    color: System.Windows.Media.Color
+    nMaxI: int
+    nMinI: int
+    selected: bool
+    x: float
+    y: float
+    z: float
+
+class ViewportRect(Agilent.MassHunter.Quantitative.PlotControl3D.Mesh3D):  # Class
+    def __init__(self) -> None: ...
+
+    m_lineWidth: float
+    m_zLevel: float
+
+    def OnMouseDown(
+        self,
+        pt: System.Windows.Point,
+        viewport3d: System.Windows.Controls.Viewport3D,
+        nModelIndex: int,
+    ) -> None: ...
+    def XMin(self) -> float: ...
+    def YMax(self) -> float: ...
+    def GetMeshes(self) -> System.Collections.ArrayList: ...
+    def OnMouseMove(
+        self,
+        pt: System.Windows.Point,
+        viewport3d: System.Windows.Controls.Viewport3D,
+        nModelIndex: int,
+    ) -> None: ...
+    def SetRect(self, pt1: System.Windows.Point, pt2: System.Windows.Point) -> None: ...
+    def YMin(self) -> float: ...
+    def XMax(self) -> float: ...

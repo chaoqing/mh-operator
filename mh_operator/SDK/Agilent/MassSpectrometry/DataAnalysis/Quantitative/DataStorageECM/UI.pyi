@@ -1,0 +1,240 @@
+# -*- coding: utf-8 -*-
+import typing
+
+# Import specific members from typing used in hints
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    FrozenSet,
+    Generic,
+    Iterable,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    TypeVar,
+    Union,
+    overload,
+)
+
+import datetime
+from enum import Enum
+
+import Agilent
+import System
+
+from . import ComplianceECM
+
+# Stubs for namespace: Agilent.MassSpectrometry.DataAnalysis.Quantitative.DataStorageECM.UI
+
+class BatchDialog(
+    Agilent.MassSpectrometry.DataAnalysis.Quantitative.ComplianceUI.IBatchDialog,
+    System.IDisposable,
+):  # Class
+    AllowFileRevisions: bool
+    AuditTrail: bool
+    BatchFile: str  # readonly
+    BatchFolder: str  # readonly
+    FileDialogMode: (
+        Agilent.MassSpectrometry.DataAnalysis.Quantitative.ComplianceUI.FileDialogMode
+    )  # readonly
+    InitialFolder: str
+    ReadOnly: bool  # readonly
+    RevisionNumber: str  # readonly
+    Title: str
+
+    def Dispose(self) -> None: ...
+    def ShowDialog(
+        self, parent: System.Windows.Forms.IWin32Window
+    ) -> System.Windows.Forms.DialogResult: ...
+
+class FileAndFolderDialog(
+    System.IDisposable,
+    Agilent.MassSpectrometry.DataAnalysis.Quantitative.ComplianceUI.IFileAndFolderDialog,
+):  # Class
+    Filters: List[
+        Agilent.MassSpectrometry.DataAnalysis.Quantitative.ComplianceUI.FileAndFolderFilter
+    ]
+    InitialFolder: str
+    Mode: (
+        Agilent.MassSpectrometry.DataAnalysis.Quantitative.ComplianceUI.FileDialogMode
+    )  # readonly
+    PathName: str  # readonly
+    Title: str
+
+    def Dispose(self) -> None: ...
+    def ShowDialog(
+        self, parent: System.Windows.Forms.IWin32Window
+    ) -> System.Windows.Forms.DialogResult: ...
+
+class FileDialog(
+    System.IDisposable,
+    Agilent.MassSpectrometry.DataAnalysis.Quantitative.ComplianceUI.IFileDialog,
+):  # Class
+    DefaultExtension: str
+    DefaultFileName: str
+    FileMustExists: bool
+    Filters: str
+    InitialFolder: str
+    Mode: (
+        Agilent.MassSpectrometry.DataAnalysis.Quantitative.ComplianceUI.FileDialogMode
+    )  # readonly
+    MultiSelect: bool
+    OverwritePrompt: bool
+    PathName: str  # readonly
+    PathNames: List[str]  # readonly
+    Title: str
+
+    def Dispose(self) -> None: ...
+    def ShowDialog(
+        self, parent: System.Windows.Forms.IWin32Window
+    ) -> System.Windows.Forms.DialogResult: ...
+
+class FolderDialog(
+    Agilent.MassSpectrometry.DataAnalysis.Quantitative.ComplianceUI.IFolderDialog,
+    System.IDisposable,
+):  # Class
+    InitialFolder: str
+    PathName: str  # readonly
+    Title: str
+
+    def Dispose(self) -> None: ...
+    def ShowDialog(
+        self, parent: System.Windows.Forms.IWin32Window
+    ) -> System.Windows.Forms.DialogResult: ...
+
+class LibraryDialog(
+    System.IDisposable,
+    Agilent.MassSpectrometry.DataAnalysis.Quantitative.ComplianceUI.ILibraryDialog,
+):  # Class
+    def __init__(
+        self,
+        compliance: ComplianceECM,
+        mode: Agilent.MassSpectrometry.DataAnalysis.Quantitative.ComplianceUI.FileDialogMode,
+    ) -> None: ...
+
+    AllowFileRevisions: bool
+    AllowNistLibraries: bool
+    ExtraFileFilter: str
+    InitialFolder: str
+    Mode: (
+        Agilent.MassSpectrometry.DataAnalysis.Quantitative.ComplianceUI.FileDialogMode
+    )  # readonly
+    PathName: str  # readonly
+    RevisionNumber: str  # readonly
+    Title: str
+
+    def AllowReferenceLibrary(self) -> None: ...
+    def Dispose(self) -> None: ...
+    def ShowDialog(
+        self, parent: System.Windows.Forms.IWin32Window
+    ) -> System.Windows.Forms.DialogResult: ...
+
+class LogonDialog(
+    System.IDisposable,
+    Agilent.MassSpectrometry.DataAnalysis.Quantitative.ComplianceUI.ILogonDialog,
+):  # Class
+    Compliance: (
+        Agilent.MassSpectrometry.DataAnalysis.Quantitative.Compliance.ICompliance
+    )  # readonly
+    Domain: str
+    Handle: System.IntPtr  # readonly
+    LogonXml: str  # readonly
+    Message: str
+    Owner: System.Windows.Window
+    Password: System.Security.SecureString
+    Server: str
+    User: str
+    ValidationMode: bool
+
+    def Dispose(self) -> None: ...
+    def ShowDialog(
+        self, parent: System.Windows.Forms.IWin32Window
+    ) -> System.Windows.Forms.DialogResult: ...
+
+    Cancel: System.ComponentModel.CancelEventHandler  # Event
+    Logon: System.ComponentModel.CancelEventHandler  # Event
+
+class MethodDialog(
+    System.IDisposable,
+    Agilent.MassSpectrometry.DataAnalysis.Quantitative.ComplianceUI.IMethodDialog,
+):  # Class
+    AllowFileRevisions: bool
+    FileDialogMode: (
+        Agilent.MassSpectrometry.DataAnalysis.Quantitative.ComplianceUI.FileDialogMode
+    )  # readonly
+    FileMustNotExist: bool
+    IndividualFileExtensions: List[str]
+    InitialFolder: str
+    PathName: str  # readonly
+    RevisionNumber: str  # readonly
+    Title: str
+
+    def Dispose(self) -> None: ...
+    def ShowDialog(
+        self, parent: System.Windows.Forms.IWin32Window
+    ) -> System.Windows.Forms.DialogResult: ...
+
+    SaveAsFolder: System.ComponentModel.CancelEventHandler  # Event
+
+class SampleFileDialog(
+    Agilent.MassSpectrometry.DataAnalysis.Quantitative.ComplianceUI.ISampleFileDialog,
+    System.IDisposable,
+):  # Class
+    InitialFolder: str
+    MultiSelect: bool
+    PathName: str  # readonly
+    PathNames: List[str]  # readonly
+    Title: str
+
+    def Dispose(self) -> None: ...
+    def ShowDialog(
+        self, parent: System.Windows.Forms.IWin32Window
+    ) -> System.Windows.Forms.DialogResult: ...
+
+class SaveBatchDialog(
+    System.Windows.Markup.IQueryAmbient,
+    System.Windows.Media.Composition.DUCE.IResource,
+    System.Windows.Window,
+    System.Windows.Markup.IHaveResources,
+    System.Windows.Markup.IAddChild,
+    System.Windows.Media.Animation.IAnimatable,
+    System.Windows.Markup.IComponentConnector,
+    System.Windows.IWindowService,
+    System.Windows.IInputElement,
+    System.Windows.IFrameworkInputElement,
+    System.ComponentModel.ISupportInitialize,
+):  # Class
+    def __init__(self) -> None: ...
+
+    BatchFile: str
+    BatchFolder: str
+    InitialFolder: str
+    SaveAsMode: bool
+
+    def InitializeComponent(self) -> None: ...
+
+class UnknownsFileDialog(
+    System.IDisposable,
+    Agilent.MassSpectrometry.DataAnalysis.Quantitative.ComplianceUI.IUnknownsFileDialog,
+):  # Class
+    AllowFileRevisions: bool
+    AnalysisFile: str  # readonly
+    AuditTrail: bool
+    BatchFolder: str  # readonly
+    FileDialogMode: (
+        Agilent.MassSpectrometry.DataAnalysis.Quantitative.ComplianceUI.FileDialogMode
+    )  # readonly
+    InitialFolder: str
+    ReadOnly: bool  # readonly
+    RevisionNumber: str  # readonly
+    Title: str
+
+    def Dispose(self) -> None: ...
+    def ShowDialog(
+        self, parent: System.Windows.Forms.IWin32Window
+    ) -> System.Windows.Forms.DialogResult: ...

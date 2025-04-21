@@ -29,7 +29,7 @@ jobs:
           .venv
         key: uv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml') }}
         restore-keys: |
-          uv-${{ runner.os }}-${{ matrix.python-version }}-
+          uv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml') }}
 
     - name: Install dependencies
       run: make install
