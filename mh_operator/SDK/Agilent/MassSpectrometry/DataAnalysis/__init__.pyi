@@ -24,8 +24,30 @@ from typing import (
 import datetime
 from enum import Enum
 
-import Agilent
-import System
+from mh_operator.SDK import Agilent, System
+
+from . import (
+    FD,
+    IMS,
+    MFS,
+    AgileIntegrator,
+    Compounds,
+    Exactify,
+    FeatureCalibration,
+    FeatureData,
+    FeatureDataAccess,
+    FeatureDeconvolution,
+    FeatureDetection,
+    LibraryEdit,
+    MassHunter,
+    MetaboliteID,
+    Quantitative,
+    SpectralSummerIntegrator,
+    TofDataBrowser,
+    TuneEvaluation,
+    UnknownsAnalysisII,
+    Utilities,
+)
 
 # Discovered Generic TypeVars:
 I = TypeVar("I")

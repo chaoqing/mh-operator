@@ -24,8 +24,7 @@ from typing import (
 import datetime
 from enum import Enum
 
-import Agilent
-import System
+from mh_operator.SDK import Agilent, System
 
 from . import (
     ChromatogramAutoScaleType,
@@ -40,6 +39,7 @@ from . import (
     MethodEditTaskMode,
     OutlierColumns,
     PlotTitleElement,
+    Properties,
     QualifierInfoLabelType,
     ScanType,
 )

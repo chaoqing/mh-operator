@@ -24,8 +24,9 @@ from typing import (
 import datetime
 from enum import Enum
 
-import Agilent
-import System
+from mh_operator.SDK import Agilent, System
+
+from . import FileDialog, NewBatch, OpenBatch, SaveAs, SplashScreen
 
 # Stubs for namespace: Agilent.MassHunter.Quantitative.Controls
 

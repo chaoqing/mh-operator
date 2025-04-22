@@ -24,8 +24,7 @@ from typing import (
 import datetime
 from enum import Enum
 
-import Agilent
-import System
+from mh_operator.SDK import Agilent, System
 
 from . import (
     AcquisitionMethod,
@@ -741,6 +740,33 @@ class MSSpecFilter:  # Class
 
     def Validate(self) -> str: ...
 
+class MainForm(
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceObject,
+    System.Windows.Forms.IWin32Window,
+    System.Windows.Forms.Layout.IArrangedElement,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStreamInit,
+    System.Windows.Forms.ISupportOleDropSource,
+    System.Windows.Forms.IBindableComponent,
+    System.Windows.Forms.IDropTarget,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStorage,
+    System.Windows.Forms.Form,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject2,
+    System.Windows.Forms.UnsafeNativeMethods.IQuickActivate,
+    System.Windows.Forms.IContainerControl,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistPropertyBag,
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceActiveObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleWindow,
+    System.ComponentModel.IComponent,
+    System.Windows.Forms.UnsafeNativeMethods.IOleObject,
+    System.Windows.Forms.UnsafeNativeMethods.IPersist,
+    System.IDisposable,
+    System.ComponentModel.ISynchronizeInvoke,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleControl,
+):  # Class
+    def __init__(self) -> None: ...
+    def CancelConversion(self) -> None: ...
+
 class MzAxis(
     Agilent.MassSpectrometry.DataAnalysis.Quantitative.IndexedData.IAxisGrid
 ):  # Class
@@ -852,6 +878,36 @@ class NonMSSpecFilter:  # Class
     SignalRange: DoubleRange
 
     def Validate(self) -> str: ...
+
+class ProgressDlg(
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceObject,
+    System.Windows.Forms.IWin32Window,
+    System.Windows.Forms.Layout.IArrangedElement,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStreamInit,
+    System.Windows.Forms.ISupportOleDropSource,
+    System.Windows.Forms.IBindableComponent,
+    System.Windows.Forms.IDropTarget,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStorage,
+    System.Windows.Forms.Form,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject2,
+    System.Windows.Forms.UnsafeNativeMethods.IQuickActivate,
+    System.Windows.Forms.IContainerControl,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistPropertyBag,
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceActiveObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleWindow,
+    System.ComponentModel.IComponent,
+    System.Windows.Forms.UnsafeNativeMethods.IOleObject,
+    System.Windows.Forms.UnsafeNativeMethods.IPersist,
+    System.IDisposable,
+    System.ComponentModel.ISynchronizeInvoke,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleControl,
+):  # Class
+    def __init__(
+        self,
+        parent: Agilent.MassSpectrometry.DataAnalysis.Quantitative.IndexedData.MainForm,
+        totalNumSamples: int,
+    ) -> None: ...
 
 class RTAxis(
     Agilent.MassSpectrometry.DataAnalysis.Quantitative.IndexedData.IAxisGrid

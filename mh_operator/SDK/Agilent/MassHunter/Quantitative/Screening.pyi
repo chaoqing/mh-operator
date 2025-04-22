@@ -24,8 +24,7 @@ from typing import (
 import datetime
 from enum import Enum
 
-import Agilent
-import System
+from mh_operator.SDK import Agilent, System
 
 from .PlotControl import IPeaks, IPlotBar, IPlotSeries, PlotAxesControl, PlotPeakSeries
 from .UIModel import IDataNavigator

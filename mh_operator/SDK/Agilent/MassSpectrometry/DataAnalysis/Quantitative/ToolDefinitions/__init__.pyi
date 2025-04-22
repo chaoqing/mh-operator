@@ -24,10 +24,9 @@ from typing import (
 import datetime
 from enum import Enum
 
-import Agilent
-import System
+from mh_operator.SDK import Agilent, System
 
-from . import GridExportMode, MethodFromLibraryIonMode
+from . import GridExportMode, MethodFromLibraryIonMode, Properties
 from .Compliance import ICompliance
 from .Toolbar import IToolBeforeDropdownHandler, IToolHandler, IToolState
 from .UIScriptIF import IGrid, IUIState, IWorktablePane

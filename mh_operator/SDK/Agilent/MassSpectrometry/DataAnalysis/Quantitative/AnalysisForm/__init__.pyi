@@ -24,10 +24,9 @@ from typing import (
 import datetime
 from enum import Enum
 
-import Agilent
-import System
+from mh_operator.SDK import Agilent, System
 
-from . import AppCommandContext, DataNavigator
+from . import AppCommandContext, DataNavigator, Properties
 from .Toolbar import IToolbarsManager, ToolbarsManagerBase
 from .UIScriptIF import IUIState
 

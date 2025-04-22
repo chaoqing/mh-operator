@@ -24,18 +24,22 @@ from typing import (
 import datetime
 from enum import Enum
 
-import Agilent
-import System
+from mh_operator.SDK import Agilent, System
 
 from . import SampleRowID, UnknownsAnalysisDataSet
 from .Command import CommandContext
+from .ReportResults import (
+    IUnknownsAnalysisDataProvider,
+    IUnknownsAnalysisDataReader,
+    IUnknownsAnalysisGraphics,
+)
 
 # Stubs for namespace: Agilent.MassSpectrometry.DataAnalysis.UnknownsAnalysisII.ReportDataProvider
 
 class UnknownsAnalysisDataProvider(
-    Agilent.MassSpectrometry.DataAnalysis.UnknownsAnalysisII.ReportResults.IUnknownsAnalysisDataProvider,
     Agilent.MassSpectrometry.DataAnalysis.Quantitative.ReportScript.IReportDataProvider,
     System.IDisposable,
+    IUnknownsAnalysisDataProvider,
 ):  # Class
     def __init__(self, context: CommandContext) -> None: ...
 
@@ -153,9 +157,7 @@ class UnknownsAnalysisDataProvider(
     ) -> int: ...
     def ExecuteReader(
         self, batchID: int, sampleID: int, select: str
-    ) -> (
-        Agilent.MassSpectrometry.DataAnalysis.UnknownsAnalysisII.ReportResults.IUnknownsAnalysisDataReader
-    ): ...
+    ) -> IUnknownsAnalysisDataReader: ...
     def GetTargetMatchMethod(
         self,
         batchID: Optional[int],
@@ -172,11 +174,7 @@ class UnknownsAnalysisDataProvider(
         ionPeakID: Optional[int],
         table: UnknownsAnalysisDataSet.IonPeakDataTable,
     ) -> int: ...
-    def CreateGraphics(
-        self,
-    ) -> (
-        Agilent.MassSpectrometry.DataAnalysis.UnknownsAnalysisII.ReportResults.IUnknownsAnalysisGraphics
-    ): ...
+    def CreateGraphics(self) -> IUnknownsAnalysisGraphics: ...
     def GetPeak(
         self,
         batchID: Optional[int],
@@ -203,18 +201,14 @@ class UnknownsAnalysisDataProvider(
     ) -> int: ...
 
 class UnknownsAnalysisDataReader(
-    System.IDisposable,
-    Agilent.MassSpectrometry.DataAnalysis.UnknownsAnalysisII.ReportResults.IUnknownsAnalysisDataReader,
+    System.IDisposable, IUnknownsAnalysisDataReader
 ):  # Class
     def __getitem__(self, name: str) -> Any: ...
     def IsDBNull(self, name: str) -> bool: ...
     def Read(self) -> bool: ...
     def Dispose(self) -> None: ...
 
-class UnknownsAnalysisGraphics(
-    System.IDisposable,
-    Agilent.MassSpectrometry.DataAnalysis.UnknownsAnalysisII.ReportResults.IUnknownsAnalysisGraphics,
-):  # Class
+class UnknownsAnalysisGraphics(System.IDisposable, IUnknownsAnalysisGraphics):  # Class
     def __init__(
         self,
         provider: Agilent.MassSpectrometry.DataAnalysis.UnknownsAnalysisII.ReportDataProvider.UnknownsAnalysisDataProvider,

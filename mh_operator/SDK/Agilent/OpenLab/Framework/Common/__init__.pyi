@@ -24,8 +24,9 @@ from typing import (
 import datetime
 from enum import Enum
 
-import Agilent
-import System
+from mh_operator.SDK import Agilent, System
+
+from . import CustomAttributes, Notification, Storage, Utilities
 
 # Discovered Generic TypeVars:
 T = TypeVar("T")

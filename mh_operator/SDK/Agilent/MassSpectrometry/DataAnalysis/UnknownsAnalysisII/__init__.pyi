@@ -24,12 +24,18 @@ from typing import (
 import datetime
 from enum import Enum
 
-import Agilent
-import System
+from mh_operator.SDK import Agilent, System
 
 from . import (
+    UI,
+    Analysis,
+    Command,
     Component,
     ComponentPerceptionParams,
+    Configuration,
+    Console,
+    DataCommand,
+    DataFile,
     DoubleRangeD,
     IChromatogram,
     IChromPeak,
@@ -42,7 +48,10 @@ from . import (
     ISpectrum,
     LibrarySearchParams,
     MSScanType,
+    ReportDataProvider,
+    ReportResults,
     RTCalibrationTable,
+    Utils,
 )
 from .Exactify import ExactifyParams
 from .Quantitative import IntegratorType, Signal

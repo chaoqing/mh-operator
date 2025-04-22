@@ -24,8 +24,54 @@ from typing import (
 import datetime
 from enum import Enum
 
-import Agilent
-import System
+from mh_operator.SDK import Agilent, System
+
+from . import (
+    MFE,
+    MFE2005,
+    MS,
+    AGaugeApp,
+    Agilent,
+    AgilentErrorReporter,
+    AGTPICSYSSERVICESLib,
+    AGTPICWORKLISTLib,
+    BasicTypes,
+    Biochemistry,
+    CommonAlgorithms,
+    ComponentAce,
+    CompositionCalculatorEngine,
+    CompositionDB,
+    CompoundFilters,
+    CorrelationNormalizationEngine3,
+    DataFitX3,
+    Definitions,
+    Dennany,
+    GenieIntegrator,
+    Infragistics,
+    Ionic,
+    IronPython,
+    IronRuby,
+    IsotopePatternCalculator,
+    IWshRuntimeLibrary,
+    Mathematics,
+    Mfe,
+    MhdFile,
+    Microsoft,
+    OpenLABTranslator,
+    Org,
+    PdfSharp,
+    PerCederberg,
+    PersistanceFiles,
+    Storer,
+    System,
+    Util,
+    XamlGeneratedNamespace,
+    Xceed,
+    com,
+    iTextSharp,
+    log4net,
+    vbAccelerator,
+)
 
 # Stubs for namespace: <global>
 

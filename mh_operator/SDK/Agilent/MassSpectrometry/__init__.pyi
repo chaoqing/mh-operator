@@ -24,9 +24,19 @@ from typing import (
 import datetime
 from enum import Enum
 
-import Agilent
-import System
+from mh_operator.SDK import Agilent, System
 
+from . import (
+    GUI,
+    MIDAC,
+    Acquisition,
+    CommandModel,
+    DataAnalysis,
+    ErrorReporting,
+    EventManipulating,
+    MSDChem,
+    Utilities,
+)
 from .DataAnalysis import (
     AcqStatus,
     BaseDataWriter,

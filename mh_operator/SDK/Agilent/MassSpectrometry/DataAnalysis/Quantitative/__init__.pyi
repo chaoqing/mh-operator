@@ -24,8 +24,73 @@ from typing import (
 import datetime
 from enum import Enum
 
-import Agilent
-import System
+from mh_operator.SDK import Agilent, System
+
+from . import (
+    NLR,
+    TSO,
+    Analysis,
+    AnalysisForm,
+    CefFileIO,
+    CheckBatchFiles,
+    CheckBatchFilesConsole,
+    ChromatogramInformation,
+    ChromSpecData,
+    CommandLineParse,
+    Compliance,
+    ComplianceConfiguration,
+    ComplianceUI,
+    CompoundsAtAGlance,
+    Configuration,
+    Controls2,
+    CoreDataTypes,
+    CustomDialogs,
+    DataStorageECM,
+    DataStorageLocal,
+    Dialogs,
+    Dialogs2,
+    DynamicQuant,
+    ECMHelper,
+    ECMProxy,
+    FileMessaging,
+    FileMessagingPrc,
+    FileMessagingSvc,
+    FlagAndFilter,
+    Grid,
+    IndexedData,
+    MethodAssistant,
+    MethodDiff,
+    MetricsPlot,
+    NumericFormat,
+    QuantAnalysis,
+    QuantConsole,
+    QueuedTask,
+    Report,
+    ReportFixedGraphics,
+    ReportMethod,
+    ReportMethodEdit,
+    ReportMethodRun,
+    ReportMethodUtils,
+    ReportScript,
+    ReportTasks,
+    ReportWizard,
+    RTCalibration,
+    RunQueryHost,
+    SampleData,
+    Schema,
+    ScriptEngine,
+    SecureFileSystem,
+    SetupSecureFolder,
+    Toolbar,
+    Toolbar2,
+    ToolDefinitions,
+    UILibrary,
+    UIScriptIF,
+    UIScriptIFImpls,
+    UIUtils,
+    UIUtils2,
+    UnknownsMethod,
+)
 
 # Discovered Generic TypeVars:
 T = TypeVar("T")
@@ -136,6 +201,7 @@ from . import (
     XSamplingType,
 )
 from .AgileIntegrator import AgilePeakShape, IPeakListProvider
+from .AnalysisForm import MainForm
 from .ChromSpecData import CachedPeak, RefSpecData
 from .Compliance import (
     ICompliance,
@@ -166,7 +232,8 @@ from .Toolbar import (
     IToolbarsManager,
     ToolbarsManagerBase,
 )
-from .UIScriptIF import IAddInManager, IChromSpecPane
+from .UIScriptIF import IAddInManager, IChromSpecPane, IUIState
+from .UIScriptIFImpls import UIState
 from .UIUtils import BindingObjectCollection, EnumItem, EnumItemCollection
 from .UIUtils2.Utils import FindOperatorType
 
@@ -852,6 +919,48 @@ class AppConfiguration:  # Class
     def GetUserConfiguration() -> (
         Agilent.MassSpectrometry.DataAnalysis.Quantitative.AppConfiguration
     ): ...
+
+class AppContext(
+    Agilent.MassSpectrometry.DataAnalysis.Quantitative.IAppContext,
+    System.Windows.Forms.ApplicationContext,
+    System.IDisposable,
+):  # Class
+    def __init__(
+        self, cmdline: Agilent.MassSpectrometry.DataAnalysis.Quantitative.CommandLine
+    ) -> None: ...
+
+    PresentationState: (
+        Agilent.MassHunter.Quantitative.UIModel.IPresentationState
+    )  # readonly
+    UIState: IUIState  # readonly
+
+    @staticmethod
+    def RegisterApplicationService(
+        uiState: IUIState, mainForm: MainForm, key: str
+    ) -> Agilent.MassHunter.Quantitative.QuantAppServices.IService: ...
+    def ShowErrorMessage(self, exception: System.Exception) -> None: ...
+    @staticmethod
+    def UpdateSplashScreen(
+        presentationState: Agilent.MassHunter.Quantitative.UIModel.IPresentationState,
+        splash: Agilent.MassHunter.Quantitative.Controls.SplashScreen.SplashScreenModel,
+    ) -> None: ...
+    @staticmethod
+    def InitScriptEngine(
+        uiState: IUIState,
+        presentationState: Agilent.MassHunter.Quantitative.UIModel.IPresentationState,
+        scriptPane: Agilent.MassHunter.Quantitative.UIModel.IScriptPane,
+    ) -> None: ...
+    @staticmethod
+    def InitSplashScreen() -> (
+        Agilent.MassHunter.Quantitative.Controls.SplashScreen.SplashScreenModel
+    ): ...
+    @staticmethod
+    def ShowHelp(
+        parent: System.Windows.Forms.IWin32Window, cmdlineType: System.Type
+    ) -> None: ...
+    def PreProcess(self) -> bool: ...
+    @staticmethod
+    def ParseConstants(uiState: UIState, constants: List[str]) -> None: ...
 
 class AppLogicConfiguration:  # Class
     def __init__(self) -> None: ...
@@ -5232,6 +5341,56 @@ class CommandEventHandler(
         e: Agilent.MassSpectrometry.DataAnalysis.Quantitative.CommandEventArgs,
     ) -> None: ...
 
+class CommandLine:  # Class
+    def __init__(self) -> None: ...
+
+    ExitCodeErrorCommandLine: int = ...  # static # readonly
+    ExitCodeErrorComplianceLicense: int = ...  # static # readonly
+    ExitCodeErrorComplianceLogOn: int = ...  # static # readonly
+    ExitCodeErrorComplianceLogOnNotRequired: int = ...  # static # readonly
+    ExitCodeErrorComplianceLogOnRequired: int = ...  # static # readonly
+    ExitCodeErrorConfiguration: int = ...  # static # readonly
+    ExitCodeErrorGeneral: int = ...  # static # readonly
+    ExitCodeErrorTrialLicense: int = ...  # static # readonly
+
+    AccountName: str
+    ApplicationService: str
+    ApplicationType: str
+    BatchFile: str
+    ConnectionTicket: str
+    Console: bool
+    Culture: str
+    DefineConstants: List[str]
+    Domain: str
+    EncryptedPassword: str
+    ErrorHasUserWhileNotRequired: bool
+    ExitCode: int  # static
+    Help: bool
+    Instrument: str
+    ParametersXml: str
+    Password: str
+    ScriptFiles: List[str]
+    Server: str
+    ToolDefinition: str
+    User: str
+    _InstrumentType: (
+        Agilent.MassSpectrometry.DataAnalysis.Quantitative.InstrumentType
+    )  # readonly
+    _Password: System.Security.SecureString  # readonly
+
+    def LoadParametersXml(self) -> None: ...
+    def ClearPassword(self) -> None: ...
+
+class CommandLine:  # Class
+    def __init__(self) -> None: ...
+
+    BatchFile: str
+    BatchPath: str
+    Culture: str
+    ReportFolder: str
+
+    def Run(self) -> int: ...
+
 class Compare1Rt2SigSorter(
     System.Collections.Generic.IComparer[
         Agilent.MassSpectrometry.DataAnalysis.Quantitative.QUANT_INDIV_PEAK
@@ -6976,6 +7135,99 @@ class GeneralIntegrator(
     @staticmethod
     def GetCondensedParameterString(rteParams: IPSetRTEIntegrator) -> str: ...
 
+class GenerateMethodReport(
+    Agilent.MassSpectrometry.DataAnalysis.Quantitative.AppCommandBase,
+    System.IDisposable,
+    Agilent.MassSpectrometry.CommandModel.Model.ICommand,
+    IComplianceLightCommand,
+    IComplianceCommand,
+):  # Class
+    @overload
+    def __init__(
+        self,
+        context: Agilent.MassSpectrometry.DataAnalysis.Quantitative.AppCommandContext,
+        templateFilePath: str,
+        fromMethodDataSet: bool,
+        batchPath: str,
+        batchFile: str,
+        sampleId: int,
+        outputPath: str,
+        reportFileName: str,
+        progress: System.Action[str],
+    ) -> None: ...
+    @overload
+    def __init__(
+        self,
+        context: Agilent.MassSpectrometry.DataAnalysis.Quantitative.AppCommandContext,
+        templateFilePath: str,
+        outputPath: str,
+        reportFileName: str,
+        progress: System.Action[str],
+    ) -> None: ...
+
+    Type: Agilent.MassSpectrometry.CommandModel.Model.CommandType  # readonly
+
+    def Do(self) -> Any: ...
+    def GetActionString(self) -> str: ...
+    def GetParameters(self) -> List[Any]: ...
+
+class GenerateReport(
+    Agilent.MassSpectrometry.DataAnalysis.Quantitative.AppCommandBase,
+    System.IDisposable,
+    Agilent.MassSpectrometry.CommandModel.Model.ICommand,
+    IComplianceLightCommand,
+    IComplianceCommand,
+):  # Class
+    @overload
+    def __init__(
+        self,
+        context: Agilent.MassSpectrometry.DataAnalysis.Quantitative.AppCommandContext,
+        batchFolder: str,
+        batchFile: str,
+        method: str,
+        outputPath: str,
+        applicationType: str,
+        samples: List[int],
+        compounds: List[int],
+        pushTask: bool,
+    ) -> None: ...
+    @overload
+    def __init__(
+        self,
+        context: Agilent.MassSpectrometry.DataAnalysis.Quantitative.AppCommandContext,
+        batchFolder: str,
+        batchFile: str,
+        method: str,
+        outputPath: str,
+        applicationType: str,
+        samples: List[int],
+        compounds: List[int],
+        pushTask: bool,
+        logonXml: str,
+    ) -> None: ...
+    @overload
+    def __init__(
+        self,
+        context: Agilent.MassSpectrometry.DataAnalysis.Quantitative.AppCommandContext,
+        batchFolder: str,
+        batchFile: str,
+        method: str,
+        outputPath: str,
+        applicationType: str,
+        cancelEventName: str,
+        samples: List[int],
+        compounds: List[int],
+        pushTask: bool,
+        logonXml: str,
+        progress: System.Action[str],
+    ) -> None: ...
+
+    Type: Agilent.MassSpectrometry.CommandModel.Model.CommandType  # readonly
+
+    def Do(self) -> Any: ...
+    def GetActionString(self) -> str: ...
+    def GetParameters(self) -> List[Any]: ...
+
 class GenieIntegrator(
     Agilent.MassSpectrometry.DataAnalysis.Quantitative.IIntegrator,
     Agilent.MassSpectrometry.DataAnalysis.Quantitative.Integrator,
@@ -7208,6 +7460,15 @@ class IAcquisitionCompound(object):  # Interface
     def GetScanElement(
         self, mz: float
     ) -> Agilent.MassSpectrometry.DataAnalysis.Quantitative.IScanElement: ...
+
+class IAppContext(object):  # Interface
+    PresentationState: (
+        Agilent.MassHunter.Quantitative.UIModel.IPresentationState
+    )  # readonly
+    UIState: IUIState  # readonly
+
+    def ShowErrorMessage(self, ex: System.Exception) -> None: ...
+    def ExitThread(self) -> None: ...
 
 class IBatchRow(object):  # Interface
     AcqDateTime: System.DateTime
@@ -10380,6 +10641,37 @@ class LibraryRTCalibration:  # Class
     )  # readonly
 
     def Run(self, batchId: int, libraryPath: str, outputFilePath: str) -> None: ...
+
+class License:  # Class
+    Container: str = ...  # static # readonly
+    Duration: int = ...  # static # readonly
+    Expire: str = ...  # static # readonly
+    Product: str = ...  # static # readonly
+
+    @staticmethod
+    def Expires(
+        company: str, product: str, version: str
+    ) -> Optional[System.DateTime]: ...
+    @staticmethod
+    def UninstallTrialLicense(
+        company: str, product: str, version: str, containerName: str
+    ) -> None: ...
+    @staticmethod
+    def InstallTrialLicense(
+        company: str,
+        product: str,
+        version: str,
+        containerName: str,
+        expiration: System.DateTime,
+        duration: System.TimeSpan,
+        allowOverwrite: bool,
+    ) -> None: ...
+    @staticmethod
+    def Exists(company: str, product: str, version: str) -> bool: ...
+    @staticmethod
+    def CheckLicense(
+        company: str, product: str, version: str, containerName: str
+    ) -> bool: ...
 
 class LocalizeResultFileTask(
     Agilent.MassSpectrometry.DataAnalysis.Quantitative.ILocalizeResultFileTask,
@@ -16362,6 +16654,16 @@ class QuantLcMsMsIntFlatBase(
 ):  # Class
     def __init__(self) -> None: ...
 
+class QuantLogListener(System.IDisposable, System.Diagnostics.TraceListener):  # Class
+    def __init__(self, name: str) -> None: ...
+
+    FilePath: str  # readonly
+
+    def CompressGzip(self, path: str) -> None: ...
+    def InitFile(self, path: str) -> None: ...
+    def Write(self, message: str) -> None: ...
+    def WriteLine(self, message: str) -> None: ...
+
 class QuantMSPeak(
     IPeakInternals,
     IResultAttributes,
@@ -16543,6 +16845,9 @@ class QuantPeakList(
     def FilterOnSignalToNoise(self, filters: IPSetPeakFilter) -> None: ...
     def Add(self, peak: IPeak) -> None: ...
     def Clone(self) -> IPeakList: ...
+
+class QuantReportConfiguration:  # Class
+    ...
 
 class QuantScriptTask(
     IQueuedTask, System.IDisposable, System.Xml.Serialization.IXmlSerializable
@@ -22108,6 +22413,36 @@ class ReportGraphicsGenerator(
 
     def Dispose(self) -> None: ...
 
+class ReportGraphicsGeneratorCommandLine:  # Class
+    def __init__(self) -> None: ...
+
+    AccountName: str
+    BatchFileName: str
+    BatchPath: str
+    CancelEventName: str
+    ConnectionTicket: str
+    ConsoleTrace: bool
+    Culture: str
+    Domain: str
+    EncryptedPassword: str
+    FixedGraphicsFile: str
+    Help: bool
+    InstrumentType: str
+    IonTraceFiles: bool
+    NoGraphics: bool
+    NoLogFile: bool
+    NoLogo: bool
+    OutputPath: str
+    Password: str
+    Progress: Agilent.MassSpectrometry.DataAnalysis.Quantitative.IReportGraphicsProgress
+    ReporterName: str
+    Server: str
+    SettingsFile: str
+    User: str
+
+    def Run(self) -> int: ...
+    def Generate(self) -> None: ...
+
 class ReportGraphicsGeneratorProxy(
     System.MarshalByRefObject, System.IDisposable
 ):  # Class
@@ -22239,6 +22574,43 @@ class ReportTasksSettingsSection(System.Configuration.ConfigurationSection):  # 
         Agilent.MassSpectrometry.DataAnalysis.Quantitative.ExcelReportSetting
     )  # readonly
 
+class ReportWindow(
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceObject,
+    System.Windows.Forms.IWin32Window,
+    System.Windows.Forms.Layout.IArrangedElement,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStreamInit,
+    System.Windows.Forms.ISupportOleDropSource,
+    System.Windows.Forms.IBindableComponent,
+    System.Windows.Forms.IDropTarget,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStorage,
+    System.Windows.Forms.Form,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject2,
+    System.Windows.Forms.UnsafeNativeMethods.IQuickActivate,
+    System.Windows.Forms.IContainerControl,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistPropertyBag,
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceActiveObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleWindow,
+    System.ComponentModel.IComponent,
+    System.Windows.Forms.UnsafeNativeMethods.IOleObject,
+    System.Windows.Forms.UnsafeNativeMethods.IPersist,
+    System.IDisposable,
+    System.ComponentModel.ISynchronizeInvoke,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleControl,
+):  # Class
+    def __init__(self) -> None: ...
+
+    BatchFile: str
+    BatchFolder: str
+    EnableSelectBatch: bool
+    GenerateNow: bool
+    Method: str
+    OpenReportFolder: bool
+    QueueTask: bool
+    ReportFolder: str
+    StartQueueViewer: bool
+    UIState: IUIState
+
 class ResolutionCalculationType(
     System.IConvertible, System.IComparable, System.IFormattable
 ):  # Struct
@@ -22347,6 +22719,15 @@ class RteIntegratorParametersControl(
     Parameters: IPSetRTEIntegrator
 
     def Reset(self) -> None: ...
+
+class RunScriptFiles:  # Class
+    def __init__(
+        self,
+        appContext: Agilent.MassSpectrometry.DataAnalysis.Quantitative.IAppContext,
+        scriptFiles: List[str],
+        exitOnFinish: bool,
+    ) -> None: ...
+    def RunScript(self) -> None: ...
 
 class RuntimeMassCal(
     System.IDisposable,
@@ -22931,6 +23312,32 @@ class Scripting:  # Class
             ...
         )  # static # readonly
 
+class SelectGroupsDialog(
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceObject,
+    System.Windows.Forms.IWin32Window,
+    System.Windows.Forms.Layout.IArrangedElement,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStreamInit,
+    System.Windows.Forms.ISupportOleDropSource,
+    System.Windows.Forms.IBindableComponent,
+    System.Windows.Forms.IDropTarget,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStorage,
+    System.Windows.Forms.Form,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject2,
+    System.Windows.Forms.UnsafeNativeMethods.IQuickActivate,
+    System.Windows.Forms.IContainerControl,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistPropertyBag,
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceActiveObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleWindow,
+    System.ComponentModel.IComponent,
+    System.Windows.Forms.UnsafeNativeMethods.IOleObject,
+    System.Windows.Forms.UnsafeNativeMethods.IPersist,
+    System.IDisposable,
+    System.ComponentModel.ISynchronizeInvoke,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleControl,
+):  # Class
+    def __init__(self) -> None: ...
+
 class SelectOutliersDialog(
     System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceObject,
     System.Windows.Forms.IWin32Window,
@@ -22969,6 +23376,37 @@ class SelectOutliersDialog(
     def GetOutlierCategoryCaption(
         category: Agilent.MassSpectrometry.DataAnalysis.Quantitative.OutlierCategories,
     ) -> str: ...
+
+class SelectRowsDialog(
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceObject,
+    System.Windows.Forms.IWin32Window,
+    System.Windows.Forms.Layout.IArrangedElement,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStreamInit,
+    System.Windows.Forms.ISupportOleDropSource,
+    System.Windows.Forms.IBindableComponent,
+    System.Windows.Forms.IDropTarget,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStorage,
+    System.Windows.Forms.Form,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject2,
+    System.Windows.Forms.UnsafeNativeMethods.IQuickActivate,
+    System.Windows.Forms.IContainerControl,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistPropertyBag,
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceActiveObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleWindow,
+    System.ComponentModel.IComponent,
+    System.Windows.Forms.UnsafeNativeMethods.IOleObject,
+    System.Windows.Forms.UnsafeNativeMethods.IPersist,
+    System.IDisposable,
+    System.ComponentModel.ISynchronizeInvoke,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleControl,
+):  # Class
+    def __init__(self) -> None: ...
+    def GetSelectedItems(
+        self,
+    ) -> Iterable[
+        Agilent.MassSpectrometry.DataAnalysis.Quantitative.ReportFilterItem
+    ]: ...
 
 class SelectSamplesDialog(
     System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceObject,

@@ -24,13 +24,89 @@ from typing import (
 import datetime
 from enum import Enum
 
-import Agilent
-import System
+from mh_operator.SDK import Agilent, System
 
 from . import ILibrary, LibraryDataSet
 from .MFS import MolecularFormula
 
 # Stubs for namespace: Agilent.MassSpectrometry.DataAnalysis.Exactify
+
+class AmbiguousPeakResolutionForm(
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceObject,
+    System.Windows.Forms.IWin32Window,
+    System.Windows.Forms.Layout.IArrangedElement,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStreamInit,
+    System.Windows.Forms.ISupportOleDropSource,
+    System.Windows.Forms.IBindableComponent,
+    System.Windows.Forms.IDropTarget,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStorage,
+    System.Windows.Forms.Form,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject2,
+    System.Windows.Forms.UnsafeNativeMethods.IQuickActivate,
+    System.Windows.Forms.IContainerControl,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistPropertyBag,
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceActiveObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleWindow,
+    System.ComponentModel.IComponent,
+    System.Windows.Forms.UnsafeNativeMethods.IOleObject,
+    System.Windows.Forms.UnsafeNativeMethods.IPersist,
+    System.IDisposable,
+    System.ComponentModel.ISynchronizeInvoke,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleControl,
+):  # Class
+    def __init__(
+        self,
+        peakMapRecord: Agilent.MassSpectrometry.DataAnalysis.Exactify.SpectrumPeakMappingRecord,
+    ) -> None: ...
+
+    IsPeakDeleted: bool  # readonly
+    IsSelectionModified: bool  # readonly
+    SelectedCharge: int  # readonly
+    SelectedFragment: MolecularFormula  # readonly
+
+class DefaultEventManipulator(
+    Agilent.MassSpectrometry.EventManipulating.Model.IEventManipulator,
+    System.IDisposable,
+    Agilent.MassSpectrometry.GUI.Plot.DefaultEventManipulatorBase,
+):  # Class
+    def __init__(
+        self, context: Agilent.MassSpectrometry.EventManipulating.EventContext
+    ) -> None: ...
+    def OnMouseUp(
+        self, sender: Any, e: System.Windows.Forms.MouseEventArgs
+    ) -> None: ...
+    def OnMouseMove(
+        self, sender: Any, e: System.Windows.Forms.MouseEventArgs
+    ) -> None: ...
+
+class DeletePeakDialog(
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceObject,
+    System.Windows.Forms.IWin32Window,
+    System.Windows.Forms.Layout.IArrangedElement,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStreamInit,
+    System.Windows.Forms.ISupportOleDropSource,
+    System.Windows.Forms.IBindableComponent,
+    System.Windows.Forms.IDropTarget,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStorage,
+    System.Windows.Forms.Form,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject2,
+    System.Windows.Forms.UnsafeNativeMethods.IQuickActivate,
+    System.Windows.Forms.IContainerControl,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistPropertyBag,
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceActiveObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleWindow,
+    System.ComponentModel.IComponent,
+    System.Windows.Forms.UnsafeNativeMethods.IOleObject,
+    System.Windows.Forms.UnsafeNativeMethods.IPersist,
+    System.IDisposable,
+    System.ComponentModel.ISynchronizeInvoke,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleControl,
+):  # Class
+    def __init__(
+        self, peak: Agilent.MassSpectrometry.DataAnalysis.Exactify.ExactMassIon
+    ) -> None: ...
 
 class ExactMassIon:  # Class
     Abundance: float  # readonly
@@ -139,6 +215,34 @@ class ExactifySession:  # Class
     ) -> None: ...
     def Save(self, sessionFilePath: str) -> None: ...
 
+class FindSpectrumDialog(
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceObject,
+    System.Windows.Forms.IWin32Window,
+    System.Windows.Forms.Layout.IArrangedElement,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStreamInit,
+    System.Windows.Forms.ISupportOleDropSource,
+    System.Windows.Forms.IBindableComponent,
+    System.Windows.Forms.IDropTarget,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStorage,
+    System.Windows.Forms.Form,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject2,
+    System.Windows.Forms.UnsafeNativeMethods.IQuickActivate,
+    System.Windows.Forms.IContainerControl,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistPropertyBag,
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceActiveObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleWindow,
+    System.ComponentModel.IComponent,
+    System.Windows.Forms.UnsafeNativeMethods.IOleObject,
+    System.Windows.Forms.UnsafeNativeMethods.IPersist,
+    System.IDisposable,
+    System.ComponentModel.ISynchronizeInvoke,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleControl,
+):  # Class
+    def __init__(
+        self, mainForm: Agilent.MassSpectrometry.DataAnalysis.Exactify.MainForm
+    ) -> None: ...
+
 class FragmentFindingAlgorithm(
     System.IConvertible, System.IComparable, System.IFormattable
 ):  # Struct
@@ -148,6 +252,32 @@ class FragmentFindingAlgorithm(
     FragmentGenerator: (
         Agilent.MassSpectrometry.DataAnalysis.Exactify.FragmentFindingAlgorithm
     ) = ...  # static # readonly
+
+class LibraryChangedDialog(
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceObject,
+    System.Windows.Forms.IWin32Window,
+    System.Windows.Forms.Layout.IArrangedElement,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStreamInit,
+    System.Windows.Forms.ISupportOleDropSource,
+    System.Windows.Forms.IBindableComponent,
+    System.Windows.Forms.IDropTarget,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStorage,
+    System.Windows.Forms.Form,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject2,
+    System.Windows.Forms.UnsafeNativeMethods.IQuickActivate,
+    System.Windows.Forms.IContainerControl,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistPropertyBag,
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceActiveObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleWindow,
+    System.ComponentModel.IComponent,
+    System.Windows.Forms.UnsafeNativeMethods.IOleObject,
+    System.Windows.Forms.UnsafeNativeMethods.IPersist,
+    System.IDisposable,
+    System.ComponentModel.ISynchronizeInvoke,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleControl,
+):  # Class
+    def __init__(self, exit: bool) -> None: ...
 
 class LibraryMappingRecord:  # Class
     ...
@@ -176,6 +306,32 @@ class LibraryProcessedEventHandler(
         args: Agilent.MassSpectrometry.DataAnalysis.Exactify.LibraryProcessedEventArgs,
     ) -> None: ...
 
+class MainForm(
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceObject,
+    System.Windows.Forms.IWin32Window,
+    System.Windows.Forms.Layout.IArrangedElement,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStreamInit,
+    System.Windows.Forms.ISupportOleDropSource,
+    System.Windows.Forms.IBindableComponent,
+    System.Windows.Forms.IDropTarget,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStorage,
+    System.Windows.Forms.Form,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject2,
+    System.Windows.Forms.UnsafeNativeMethods.IQuickActivate,
+    System.Windows.Forms.IContainerControl,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistPropertyBag,
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceActiveObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleWindow,
+    System.ComponentModel.IComponent,
+    System.Windows.Forms.UnsafeNativeMethods.IOleObject,
+    System.Windows.Forms.UnsafeNativeMethods.IPersist,
+    System.IDisposable,
+    System.ComponentModel.ISynchronizeInvoke,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleControl,
+):  # Class
+    def __init__(self) -> None: ...
+
 class MultipleCandidateFragments:  # Class
     CandidateFragmentList: System.Collections.Generic.List[MolecularFormula]  # readonly
     Charge: int  # readonly
@@ -186,6 +342,63 @@ class MultipleCandidateFragments:  # Class
     SourceMZ: float  # readonly
 
     def Contains(self, fragment: MolecularFormula) -> bool: ...
+
+class ParametersForm(
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceObject,
+    System.Windows.Forms.IWin32Window,
+    System.Windows.Forms.Layout.IArrangedElement,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStreamInit,
+    System.Windows.Forms.ISupportOleDropSource,
+    System.Windows.Forms.IBindableComponent,
+    System.Windows.Forms.IDropTarget,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStorage,
+    System.Windows.Forms.Form,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject2,
+    System.Windows.Forms.UnsafeNativeMethods.IQuickActivate,
+    System.Windows.Forms.IContainerControl,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistPropertyBag,
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceActiveObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleWindow,
+    System.ComponentModel.IComponent,
+    System.Windows.Forms.UnsafeNativeMethods.IOleObject,
+    System.Windows.Forms.UnsafeNativeMethods.IPersist,
+    System.IDisposable,
+    System.ComponentModel.ISynchronizeInvoke,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleControl,
+):  # Class
+    def __init__(self) -> None: ...
+
+class ProgressDlg(
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceObject,
+    System.Windows.Forms.IWin32Window,
+    System.Windows.Forms.Layout.IArrangedElement,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStreamInit,
+    System.Windows.Forms.ISupportOleDropSource,
+    System.Windows.Forms.IBindableComponent,
+    System.Windows.Forms.IDropTarget,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistStorage,
+    System.Windows.Forms.Form,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject2,
+    System.Windows.Forms.UnsafeNativeMethods.IQuickActivate,
+    System.Windows.Forms.IContainerControl,
+    System.Windows.Forms.UnsafeNativeMethods.IPersistPropertyBag,
+    System.Windows.Forms.UnsafeNativeMethods.IOleInPlaceActiveObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleWindow,
+    System.ComponentModel.IComponent,
+    System.Windows.Forms.UnsafeNativeMethods.IOleObject,
+    System.Windows.Forms.UnsafeNativeMethods.IPersist,
+    System.IDisposable,
+    System.ComponentModel.ISynchronizeInvoke,
+    System.Windows.Forms.UnsafeNativeMethods.IViewObject,
+    System.Windows.Forms.UnsafeNativeMethods.IOleControl,
+):  # Class
+    def __init__(
+        self,
+        parent: Agilent.MassSpectrometry.DataAnalysis.Exactify.MainForm,
+        exactify: Agilent.MassSpectrometry.DataAnalysis.Exactify.Exactify,
+        numSpectra: int,
+    ) -> None: ...
 
 class SpectrumMappingRecord:  # Class
     CompoundFormula: MolecularFormula  # readonly

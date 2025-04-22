@@ -24,10 +24,9 @@ from typing import (
 import datetime
 from enum import Enum
 
-import Agilent
-import System
+from mh_operator.SDK import Agilent, System
 
-from . import IChromatogram, IChromPeak, IDataAccess, IPSetExtractChrom, ISpectrum
+from . import UI, IChromatogram, IChromPeak, IDataAccess, IPSetExtractChrom, ISpectrum
 from .Quantitative import Signal
 
 # Stubs for namespace: Agilent.MassSpectrometry.DataAnalysis.TuneEvaluation

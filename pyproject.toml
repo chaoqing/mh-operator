@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mh-operator"
-version = "0.0.2"
+version = "0.0.3"
 description = "Awesome `mh-operator` provide interfaces and common routines for the Agilent MassHunter official SDK."
 readme = "README.md"
 license = "MIT"
@@ -117,6 +117,9 @@ warn_return_any = true
 warn_unreachable = true
 warn_unused_configs = true
 warn_unused_ignores = true
+exclude = [
+  "SDK",
+]
 
 [tool.pytest.ini_options]
 # https://docs.pytest.org/en/stable/reference/customize.html#pyproject-toml

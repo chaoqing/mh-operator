@@ -24,9 +24,9 @@ from typing import (
 import datetime
 from enum import Enum
 
-import Agilent
-import System
+from mh_operator.SDK import Agilent, System
 
+from . import AcamlFixes, StreamProxies
 from .Interfaces import DataChangeLevel
 
 # Stubs for namespace: Agilent.OpenLab.Framework.DataAccess.AcamlInfrastructure.Utilities
@@ -44,3 +44,21 @@ class ProcessingTransaction:  # Class
     def TryOpen(self) -> bool: ...
     def Commit(self, dataChangeLevel: DataChangeLevel) -> None: ...
     def TryCommit(self, dataChangeLevel: DataChangeLevel) -> None: ...
+
+class TempFileStream(System.IDisposable, System.IO.Stream):  # Class
+    @overload
+    def __init__(self) -> None: ...
+    @overload
+    def __init__(self, sourceStream: System.IO.Stream) -> None: ...
+
+    CanRead: bool  # readonly
+    CanSeek: bool  # readonly
+    CanWrite: bool  # readonly
+    Length: int  # readonly
+    Position: int
+
+    def Read(self, buffer: List[int], offset: int, count: int) -> int: ...
+    def Write(self, buffer: List[int], offset: int, count: int) -> None: ...
+    def Flush(self) -> None: ...
+    def SetLength(self, value_: int) -> None: ...
+    def Seek(self, offset: int, origin: System.IO.SeekOrigin) -> int: ...

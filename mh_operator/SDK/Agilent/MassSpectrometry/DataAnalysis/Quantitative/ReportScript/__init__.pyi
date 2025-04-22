@@ -24,9 +24,9 @@ from typing import (
 import datetime
 from enum import Enum
 
-import Agilent
-import System
+from mh_operator.SDK import Agilent, System
 
+from . import QuantDataProvider
 from .Compliance import ICompliance, IImpersonationContext
 from .ScriptEngine import IronEngine
 
