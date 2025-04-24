@@ -18,6 +18,7 @@ repos:
         entry: uv run -- pyupgrade --py310-plus
         types: [python]
         language: system
+        exclude: ^(mh_operator/SDK/|mh_operator/legacy/)
 
       - id: isort
         name: isort

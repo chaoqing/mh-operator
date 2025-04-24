@@ -15,4 +15,11 @@
 
 Awesome `mh-operator` provide interfaces and common routines for the Agilent MassHunter official SDK.
 
+
+## Usage:
+
+## Notice:
+
+- MassHunter use [IronPython2.7.5](https://github.com/IronLanguages/main/releases/download/ipy-2.7.5/IronPython-2.7.5.msi) for its SDK engine, normally it does not have the python StdLib under its `PYTHONPATH`. For this package to work, you may need copy/paste the StdLib from `C:\Program Files\IronPython 2.7\Lib` to like `C:\MassHunter\Scripts\Unknowns\Lib` .
+
 </div>
