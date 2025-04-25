@@ -4,10 +4,6 @@ PYTHON := python
 PYTHONPATH := `pwd`
 VENV_DIR := .venv
 
-#* Docker variables
-IMAGE := mh_operator
-VERSION := latest
-
 #* Installation and Environment Setup
 .PHONY: check-uv
 check-uv:
@@ -48,7 +44,7 @@ pre-commit-install: check-uv
 .PHONY: codestyle
 codestyle: check-uv
 	@echo "Running formatters..."
-	uv run -- pyupgrade --exit-zero-even-if-changed --py39-plus **/*.py
+	uv run -- pyupgrade --exit-zero-even-if-changed --py310-plus mh_operator/*.py mh_operator/utils/*.py tests/*.py
 	uv run -- isort --settings-path pyproject.toml ./
 	uv run -- black --config pyproject.toml ./
 

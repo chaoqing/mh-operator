@@ -59,6 +59,7 @@ Homepage = "https://github.com/chaoqing/mh-operator"
 
 [project.scripts]
 "mh-operator" = "mh_operator.__main__:app"
+"ipy27" = "mh_operator.utils.ironpython27:main"
 
 [tool.black]
 # https://github.com/psf/black
