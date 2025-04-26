@@ -5,8 +5,9 @@ import subprocess
 import sys
 from collections.abc import Iterable
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
-from .log import logger
+from .common import logger, set_logger_level
 
 # fmt: off
 __DEFAULT_MH_BIN_DIR__ = Path("C:/") / "Program Files" / "Agilent" / "MassHunter" / "Workstation" / "Quant" / "bin"
@@ -93,8 +94,8 @@ def run_ironpython_script(
     Runs an IronPython script using the subprocess module.
 
     Args:
-        script_path (str): Path to the IronPython script (.py) to execute.
-        ipy_path (str): Path to the IronPython executable (e.g., ipy.exe).
+        script_path (Path): Path to the IronPython script (.py) to execute.
+        ipy_path (Path): Path to the IronPython executable (e.g., ipy.exe).
         cwd (str, optional): The working directory for the subprocess.
                              Defaults to the current working directory.
         python_paths (list, optional): A list of additional paths to add to
@@ -103,9 +104,14 @@ def run_ironpython_script(
                                        copy of os.environ.
         script_args (list, optional): A list of command-line arguments to pass
                                       to the IronPython script itself.
+        capture_type (CaptureType): The stdout/stderr capture for returned values.
 
     Returns:
         tuple: A tuple containing (return_code, stdout, stderr).
+
+    Raises:
+        SystemError: Usually because of FileNotFoundError on interperater/script
+
     """
 
     # The script_path do not respect cwd specified, always use current real working directory
@@ -146,13 +152,16 @@ def run_ironpython_script(
 
     command = [str(c) for c in command]
     logger.debug(
-        f"""
---- Running IronPython Script ---
-f"Executable: {ipy_path}
-f"Script:     {script_path}
-f"Arguments:  {script_args}
-f"CWD:        {cwd}
-f"Command:    {' '.join(command)}"""
+        "\n".join(
+            (
+                f"--- Running IronPython Script ---",
+                f"Executable: {ipy_path}",
+                f"Script:     {script_path}",
+                f"Arguments:  {script_args}",
+                f"CWD:        {cwd}",
+                f"Command:    {' '.join(command)}",
+            )
+        )
     )
 
     capture_args = {
@@ -174,12 +183,15 @@ f"Command:    {' '.join(command)}"""
     )
 
     logger.debug(
-        f"""
---- IronPython Output (stdout) ---
-{result[1]}
---- IronPython Output (stderr) ---
-{result[2]}
---- IronPython process finished with exit code: {result[0]} ---"""
+        "\n".join(
+            (
+                f"--- IronPython Output (stdout) ---",
+                f"{result[1]}",
+                f"--- IronPython Output (stderr) ---",
+                f"{result[2]}",
+                f"--- IronPython process finished with exit code: {result[0]} ---",
+            )
+        )
     )
 
     return result
@@ -191,7 +203,7 @@ import click
 @click.command(help="Runs an IronPython script using the subprocess module.")
 @click.argument(
     "script",
-    type=click.Path(exists=True, dir_okay=False, resolve_path=True),
+    type=str,
 )
 @click.argument(
     "script_args",
@@ -200,18 +212,20 @@ import click
 @click.option(
     "--ipy",
     default="python2",
+    type=str,
     help="Path to the IronPython executable (e.g., ipy.exe or /usr/bin/ipy).",
 )
 @click.option(
     "--cwd",
-    default=".",
+    default=Path(".").absolute(),
     type=click.Path(exists=True, file_okay=False, resolve_path=True),
-    show_default=True,
+    show_default=False,
     help="Working directory for the IronPython process.",
 )
 @click.option(
-    "--pythonpath",
+    "--python-path",
     type=click.Path(exists=True, resolve_path=True),
+    default=[Path(".").absolute()],
     multiple=True,
     help="Additional paths to add to the IronPython environment's PYTHONPATH.",
 )
@@ -221,35 +235,53 @@ import click
     type=str,
     help="Additional envrionments",
 )
+@click.option(
+    "--log-level",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"], case_sensitive=False),
+    default="INFO",
+    help="Set the logging verbosity",
+)
 def main(
-    script: Path,
+    script: str,
     ipy: Path = __DEFAULT_PY275_EXE__,
     cwd: Path | None = None,
-    pythonpath: Iterable[str] | None = None,
-    env: Iterable[str] | None = None,
-    script_args: Iterable[str] | None = None,
+    python_path: list[str] | None = None,
+    env: list[str] | None = None,
+    script_args: list[str] | None = None,
+    log_level: str = "INFO",
 ):
-    click.echo("Starting CLI execution...")  # Use click.echo for output
+    click.secho("Starting CLI execution...", fg="green")  # Use click.echo for output
+    set_logger_level(log_level)
+    is_temp_script = script == "-"
 
-    returncode, _, _ = run_ironpython_script(
-        ipy_path=ipy,
-        script_path=script,
-        cwd=cwd,
-        python_paths=pythonpath,
-        extra_envs=env,
-        script_args=script_args,
-        capture_type=CaptureType.NONE,
-    )
+    if is_temp_script:
+        with NamedTemporaryFile("w", suffix=".py", delete=False) as fp:
+            fp.write(sys.stdin.read())
+            script = fp.name
 
-    if returncode == 0:
-        click.secho(f"Processing completed successfully for {script}", fg="green")
-    else:
-        click.secho(
-            f"Processing failed for {script} with return code {returncode}",
-            fg="red",
-            err=True,
+    try:
+        returncode, _, _ = run_ironpython_script(
+            ipy_path=ipy,
+            script_path=Path(script),
+            cwd=cwd,
+            python_paths=python_path,
+            extra_envs=env,
+            script_args=script_args,
+            capture_type=CaptureType.NONE,
         )
-        raise click.Abort()
+
+        if returncode == 0:
+            click.secho(f"Processing completed successfully for {script}", fg="green")
+        else:
+            click.secho(
+                f"Processing failed for {script} with return code {returncode}",
+                fg="red",
+                err=True,
+            )
+            raise click.Abort()
+    finally:
+        if is_temp_script:
+            Path(script).unlink()
 
 
 if __name__ == "__main__":
