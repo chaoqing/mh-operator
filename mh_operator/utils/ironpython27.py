@@ -257,9 +257,9 @@ def main(
 
     Example:
 
-        ipy27 --command "import sys; print sys.version"
+        shebang --interpreter LEC --command "import sys; print sys.version"
 
-        ipy27 - <<< "import sys; print sys.version"
+        shebang - <<< "import sys; print sys.version"
     """
     set_logger_level(log_level)
 
@@ -272,8 +272,15 @@ def main(
 
     if is_temp_script:
         with NamedTemporaryFile("w", suffix=".py", delete=False) as fp:
-            fp.write(sys.stdin.read() if command is None else command)
             script = fp.name
+            if command is None:
+                click.secho(
+                    f"Reading from stdin into {script}",
+                    fg="green",
+                )
+                fp.write(sys.stdin.read())
+            else:
+                fp.write(command)
 
     try:
         returncode, _, _ = run_ironpython_script(
