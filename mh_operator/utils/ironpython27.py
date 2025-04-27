@@ -16,10 +16,10 @@ __DEFAULT_PY275_EXE__ = Path("C:/") / "Program Files (x86)" / "IronPython 2.7" /
 
 
 def get_absolute_executable_path(
-    ipy_path: Path,
+    interpreter: Path,
     cwd: Path | None = None,
 ) -> Path:
-    exe_path = Path(ipy_path)
+    exe_path = Path(interpreter)
 
     if exe_path.exists():
         logger.debug("direct found executable")
@@ -27,10 +27,10 @@ def get_absolute_executable_path(
     if (
         cwd is not None
         and not exe_path.is_absolute()
-        and (Path(cwd) / ipy_path).exists()
+        and (Path(cwd) / interpreter).exists()
     ):
         logger.debug("found executable under relative path")
-        return (Path(cwd) / ipy_path).absolute()
+        return (Path(cwd) / interpreter).absolute()
 
     # fmt: off
     alias = {
@@ -63,11 +63,11 @@ def get_absolute_executable_path(
         "TofFeatureDetectorConsole.exe": __DEFAULT_MH_BIN_DIR__ / "TofFeatureDetectorConsole.exe",
     }
     # fmt: on
-    exe_path = alias.get(str(ipy_path), None)
+    exe_path = alias.get(str(interpreter), None)
     if exe_path is not None and exe_path.exists():
         logger.debug("found executable with alias")
         return exe_path
-    raise SystemError(f"Error: IronPython executable not found at '{ipy_path}'")
+    raise SystemError(f"Error: IronPython executable not found at '{interpreter}'")
 
 
 from enum import Enum, auto
@@ -83,7 +83,7 @@ class CaptureType(Enum):
 
 def run_ironpython_script(
     script_path: Path,
-    ipy_path: Path = __DEFAULT_PY275_EXE__,
+    interpreter: Path = __DEFAULT_PY275_EXE__,
     cwd: Path | None = None,
     python_paths: Iterable[str] | None = None,
     extra_envs: Iterable[str] | None = None,
@@ -95,7 +95,7 @@ def run_ironpython_script(
 
     Args:
         script_path (Path): Path to the IronPython script (.py) to execute.
-        ipy_path (Path): Path to the IronPython executable (e.g., ipy.exe).
+        interpreter (Path): Path to the IronPython-like executable (e.g., ipy.exe).
         cwd (str, optional): The working directory for the subprocess.
                              Defaults to the current working directory.
         python_paths (list, optional): A list of additional paths to add to
@@ -122,7 +122,7 @@ def run_ironpython_script(
     # relative executable path can be infered by specified cwd when not found under current directory
     cwd = Path("." if cwd is None else cwd).absolute()
     assert Path(cwd).is_dir()
-    ipy_path = get_absolute_executable_path(ipy_path, cwd)
+    interpreter = get_absolute_executable_path(interpreter, cwd)
 
     env = os.environ.copy()
 
@@ -136,14 +136,14 @@ def run_ironpython_script(
     if script_args is None:
         script_args = []
     # For MassHunter executable, passing args as envrionments
-    if ipy_path.parts[-5:-1] == __DEFAULT_MH_BIN_DIR__.parts[-4:]:
-        command = [ipy_path, f"-script={script_path}"]
+    if interpreter.parts[-5:-1] == __DEFAULT_MH_BIN_DIR__.parts[-4:]:
+        command = [interpreter, f"-script={script_path}"]
         for i, arg in enumerate(script_args):
             # One would better not specify environment MH_CONSOLE_ARGS_* from outside
             assert env.setdefault(f"MH_CONSOLE_ARGS_{i}", arg) == arg
         script_args = []
     else:
-        command = [ipy_path, script_path, *script_args]
+        command = [interpreter, script_path, *script_args]
 
     if python_paths:
         env["PYTHONPATH"] = os.pathsep.join(
@@ -155,7 +155,7 @@ def run_ironpython_script(
         "\n".join(
             (
                 f"--- Running IronPython Script ---",
-                f"Executable: {ipy_path}",
+                f"Executable: {interpreter}",
                 f"Script:     {script_path}",
                 f"Arguments:  {script_args}",
                 f"CWD:        {cwd}",
@@ -200,17 +200,18 @@ def run_ironpython_script(
 import click
 
 
-@click.command(help="Runs an IronPython script using the subprocess module.")
-@click.argument(
-    "script",
-    type=str,
-)
+@click.command()
 @click.argument(
     "script_args",
+    type=str,
     nargs=-1,
 )
 @click.option(
-    "--ipy",
+    "--command",
+    help="The temporary script contents, the first arg will no longer be treated as script pass.",
+)
+@click.option(
+    "--interpreter",
     default="python2",
     type=str,
     help="Path to the IronPython executable (e.g., ipy.exe or /usr/bin/ipy).",
@@ -242,26 +243,41 @@ import click
     help="Set the logging verbosity",
 )
 def main(
-    script: str,
-    ipy: Path = __DEFAULT_PY275_EXE__,
+    script_args: list[str],
+    command: str | None = None,
+    interpreter: Path = __DEFAULT_PY275_EXE__,
     cwd: Path | None = None,
     python_path: list[str] | None = None,
     env: list[str] | None = None,
-    script_args: list[str] | None = None,
     log_level: str = "INFO",
 ):
-    click.secho("Starting CLI execution...", fg="green")  # Use click.echo for output
+    """Runs an IronPython script using the subprocess module.
+    Command text must be provided or the first argument will be treated as the script path.
+    Script path `-` will be read from stdin.
+
+    Example:
+
+        ipy27 --command "import sys; print sys.version"
+
+        ipy27 - <<< "import sys; print sys.version"
+    """
     set_logger_level(log_level)
+
+    if command is None and script_args:
+        script, *script_args = script_args
+    else:
+        script = "-"
+
     is_temp_script = script == "-"
 
     if is_temp_script:
         with NamedTemporaryFile("w", suffix=".py", delete=False) as fp:
-            fp.write(sys.stdin.read())
+            fp.write(sys.stdin.read() if command is None else command)
             script = fp.name
 
     try:
         returncode, _, _ = run_ironpython_script(
-            ipy_path=ipy,
+            interpreter=interpreter,
             script_path=Path(script),
             cwd=cwd,
             python_paths=python_path,
@@ -270,9 +286,7 @@ def main(
             capture_type=CaptureType.NONE,
         )
 
-        if returncode == 0:
-            click.secho(f"Processing completed successfully for {script}", fg="green")
-        else:
+        if returncode != 0:
             click.secho(
                 f"Processing failed for {script} with return code {returncode}",
                 fg="red",
