@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 from collections.abc import Iterable
+from enum import Enum, auto
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -49,18 +50,6 @@ def get_absolute_executable_path(
         "QC": __DEFAULT_MH_BIN_DIR__ / "QuantConsole.exe",
         "QuantConsole": __DEFAULT_MH_BIN_DIR__ / "QuantConsole.exe",
         "QuantConsole.exe": __DEFAULT_MH_BIN_DIR__ / "QuantConsole.exe",
-
-        "CBFC": __DEFAULT_MH_BIN_DIR__ / "CheckBatchFilesConsole.exe",
-        "CheckBatchFilesConsole": __DEFAULT_MH_BIN_DIR__ / "CheckBatchFilesConsole.exe",
-        "CheckBatchFilesConsole.exe": __DEFAULT_MH_BIN_DIR__ / "CheckBatchFilesConsole.exe",
-
-        "TDACC": __DEFAULT_MH_BIN_DIR__ / "TDAConverterConsole.exe",
-        "TDAConverterConsole": __DEFAULT_MH_BIN_DIR__ / "TDAConverterConsole.exe",
-        "TDAConverterConsole.exe": __DEFAULT_MH_BIN_DIR__ / "TDAConverterConsole.exe",
-
-        "TDC": __DEFAULT_MH_BIN_DIR__ / "TofFeatureDetectorConsole.exe",
-        "TofFeatureDetectorConsole": __DEFAULT_MH_BIN_DIR__ / "TofFeatureDetectorConsole.exe",
-        "TofFeatureDetectorConsole.exe": __DEFAULT_MH_BIN_DIR__ / "TofFeatureDetectorConsole.exe",
     }
     # fmt: on
     exe_path = alias.get(str(interpreter), None)
@@ -68,9 +57,6 @@ def get_absolute_executable_path(
         logger.debug("found executable with alias")
         return exe_path
     raise SystemError(f"Error: IronPython executable not found at '{interpreter}'")
-
-
-from enum import Enum, auto
 
 
 class CaptureType(Enum):
@@ -122,7 +108,6 @@ def run_ironpython_script(
     # relative executable path can be infered by specified cwd when not found under current directory
     cwd = Path("." if cwd is None else cwd).absolute()
     assert Path(cwd).is_dir()
-    interpreter = get_absolute_executable_path(interpreter, cwd)
 
     env = os.environ.copy()
 
@@ -284,7 +269,7 @@ def main(
 
     try:
         returncode, _, _ = run_ironpython_script(
-            interpreter=interpreter,
+            interpreter=get_absolute_executable_path(interpreter, cwd),
             script_path=Path(script),
             cwd=cwd,
             python_paths=python_path,

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import datetime
 
-from .Base import RowBase, TableBase
+from mh_operator.legacy.Base import RowBase, TableBase
 
 
 class BatchRow(RowBase):
