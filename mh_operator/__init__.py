@@ -5,7 +5,7 @@ import sys
 
 __all__ = ["version", "get_version"]
 
-if sys.executable is None:
+if sys.version_info.major == 2:
     version = "unknown"
     get_version = lambda: "unknown"
 else:
