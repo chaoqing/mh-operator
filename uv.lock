@@ -373,6 +373,7 @@ version = "0.0.6"
 source = { editable = "." }
 dependencies = [
     { name = "rich" },
+    { name = "six" },
     { name = "typer", extra = ["all"] },
 ]
 
@@ -386,6 +387,7 @@ dev = [
     { name = "isort", extra = ["colors"] },
     { name = "mypy" },
     { name = "mypy-extensions" },
+    { name = "pip" },
     { name = "pre-commit" },
     { name = "pydocstyle" },
     { name = "pylint" },
@@ -406,6 +408,7 @@ requires-dist = [
     { name = "isort", extras = ["colors"], marker = "extra == 'dev'", specifier = ">=5.10.1,<6.0.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=0.910,<0.911" },
     { name = "mypy-extensions", marker = "extra == 'dev'", specifier = ">=0.4.3,<0.5.0" },
+    { name = "pip", marker = "extra == 'dev'", specifier = ">=25.1" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=2.15.0,<3.0.0" },
     { name = "pydocstyle", marker = "extra == 'dev'", specifier = ">=6.1.1,<7.0.0" },
     { name = "pylint", marker = "extra == 'dev'", specifier = ">=2.11.1,<3.0.0" },
@@ -415,6 +418,7 @@ requires-dist = [
     { name = "pyupgrade", marker = "extra == 'dev'", specifier = ">=2.29.1,<3.0.0" },
     { name = "rich", specifier = ">=10.14.0,<11.0.0" },
     { name = "safety", marker = "extra == 'dev'", specifier = ">=1.10.3,<2.0.0" },
+    { name = "six", specifier = ">=1.17.0" },
     { name = "typer", extras = ["all"], specifier = ">=0.4.0,<0.5.0" },
 ]
 provides-extras = ["dev"]
@@ -476,6 +480,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/01/d2/510cc0d218e753ba62a1bc1434651db3cd797a9716a0a66cc714cb4f0935/pbr-6.1.1.tar.gz", hash = "sha256:93ea72ce6989eb2eed99d0f75721474f69ad88128afdef5ac377eb797c4bf76b", size = 125702 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/47/ac/684d71315abc7b1214d59304e23a982472967f6bf4bde5a98f1503f648dc/pbr-6.1.1-py2.py3-none-any.whl", hash = "sha256:38d4daea5d9fa63b3f626131b9d34947fd0c8be9b05a29276870580050a25a76", size = 108997 },
+]
+
+[[package]]
+name = "pip"
+version = "25.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/79/67/c06f625e2968c417052b3a4a0eef40656d5d4d44033e57b40ec474af1d28/pip-25.1.tar.gz", hash = "sha256:272bdd1289f80165e9070a4f881e8f9e1001bbb50378561d1af20e49bf5a2200", size = 1939624 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e0/f0/8a2806114cd36e282823fd4d8e88e3b94dc943c2569c350d0c826a49db38/pip-25.1-py3-none-any.whl", hash = "sha256:13b4aa0aaad055020a11bec8a1c2a70a2b2d080e12d89b962266029fff0a16ba", size = 1824948 },
 ]
 
 [[package]]
@@ -736,6 +749,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/58/15/8b3609fd3830ef7b27b655beb4b4e9c62313a4e8da8c676e142cc210d58e/shellingham-1.5.4.tar.gz", hash = "sha256:8dbca0739d487e5bd35ab3ca4b36e11c4078f3a234bfce294b0a0291363404de", size = 10310 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e0/f9/0595336914c5619e5f28a1fb793285925a8cd4b432c9da0a987836c7f822/shellingham-1.5.4-py2.py3-none-any.whl", hash = "sha256:7ecfff8f2fd72616f7481040475a65b2bf8af90a56c89140852d1120324e8686", size = 9755 },
+]
+
+[[package]]
+name = "six"
+version = "1.17.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/94/e7/b2c673351809dca68a0e064b6af791aa332cf192da575fd474ed7d6f16a2/six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81", size = 34031 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274", size = 11050 },
 ]
 
 [[package]]

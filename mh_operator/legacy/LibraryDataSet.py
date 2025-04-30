@@ -53,10 +53,10 @@ class LibraryRow(RowBase):
         return self._values[6]
 
 
-class LibraryDataTable(DataTableBase):
+class LibraryDataTable(DataTableBase[LibraryRow]):
     """Represents the Library table, containing LibraryRow objects."""
 
-    RowType = LibraryRow
+    pass
 
 
 class CompoundRow(RowBase):
@@ -143,10 +143,10 @@ class CompoundRow(RowBase):
         return self._values[15]
 
 
-class CompoundDataTable(DataTableBase):
+class CompoundDataTable(DataTableBase[CompoundRow]):
     """Represents the Compound table, containing CompoundRow objects."""
 
-    RowType = CompoundRow
+    pass
 
 
 class SpectrumRow(RowBase):
@@ -293,7 +293,7 @@ class SpectrumRow(RowBase):
         return self._values[27]
 
 
-class SpectrumDataTable(DataTableBase):
+class SpectrumDataTable(DataTableBase[SpectrumRow]):
     """Represents the Spectrum table, containing SpectrumRow objects."""
 
-    RowType = SpectrumRow
+    pass

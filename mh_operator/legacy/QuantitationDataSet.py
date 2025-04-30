@@ -403,10 +403,10 @@ class BatchRow(RowBase):
         return self._values[76]
 
 
-class BatchDataTable(DataTableBase):
+class BatchDataTable(DataTableBase[BatchRow]):
     """Represents the Batch table, containing BatchRow objects."""
 
-    RowType = BatchRow
+    pass
 
 
 class TargetCompoundRow(RowBase):
@@ -1543,10 +1543,10 @@ class TargetCompoundRow(RowBase):
         return self._values[225]
 
 
-class TargetCompoundDataTable(DataTableBase):
+class TargetCompoundDataTable(DataTableBase[TargetCompoundRow]):
     """Represents the TargetCompound table, containing TargetCompoundRow objects."""
 
-    RowType = TargetCompoundRow
+    pass
 
 
 class TargetQualifierRow(RowBase):
@@ -1713,10 +1713,10 @@ class TargetQualifierRow(RowBase):
         return self._values[31]
 
 
-class TargetQualifierDataTable(DataTableBase):
+class TargetQualifierDataTable(DataTableBase[TargetQualifierRow]):
     """Represents the TargetQualifier table, containing TargetQualifierRow objects."""
 
-    RowType = TargetQualifierRow
+    pass
 
 
 class PeakRow(RowBase):
@@ -2273,10 +2273,10 @@ class PeakRow(RowBase):
         return self._values[109]
 
 
-class PeakDataTable(DataTableBase):
+class PeakDataTable(DataTableBase[PeakRow]):
     """Represents the Peak table, containing PeakRow objects."""
 
-    RowType = PeakRow
+    pass
 
 
 class PeakQualifierRow(RowBase):
@@ -2508,10 +2508,10 @@ class PeakQualifierRow(RowBase):
         return self._values[44]
 
 
-class PeakQualifierDataTable(DataTableBase):
+class PeakQualifierDataTable(DataTableBase[PeakQualifierRow]):
     """Represents the PeakQualifier table, containing PeakQualifierRow objects."""
 
-    RowType = PeakQualifierRow
+    pass
 
 
 class CalibrationRow(RowBase):
@@ -2593,7 +2593,7 @@ class CalibrationRow(RowBase):
         return self._values[14]
 
 
-class CalibrationDataTable(DataTableBase):
+class CalibrationDataTable(DataTableBase[CalibrationRow]):
     """Represents the Calibration table, containing CalibrationRow objects."""
 
-    RowType = CalibrationRow
+    pass

@@ -188,10 +188,10 @@ class BatchRow(RowBase):
         return self._values[33]
 
 
-class BatchDataTable(DataTableBase):
+class BatchDataTable(DataTableBase[BatchRow]):
     """Represents the Batch table, containing BatchRow objects."""
 
-    RowType = BatchRow
+    pass
 
 
 class SampleRow(RowBase):
@@ -463,10 +463,10 @@ class SampleRow(RowBase):
         return self._values[52]
 
 
-class SampleDataTable(DataTableBase):
+class SampleDataTable(DataTableBase[SampleRow]):
     """Represents the Sample table, containing SampleRow objects."""
 
-    RowType = SampleRow
+    pass
 
 
 class ComponentRow(RowBase):
@@ -643,10 +643,10 @@ class ComponentRow(RowBase):
         return self._values[33]
 
 
-class ComponentDataTable(DataTableBase):
+class ComponentDataTable(DataTableBase[ComponentRow]):
     """Represents the Component table, containing ComponentRow objects."""
 
-    RowType = ComponentRow
+    pass
 
 
 class HitRow(RowBase):
@@ -828,10 +828,10 @@ class HitRow(RowBase):
         return self._values[34]
 
 
-class HitDataTable(DataTableBase):
+class HitDataTable(DataTableBase[HitRow]):
     """Represents the Hit table, containing HitRow objects."""
 
-    RowType = HitRow
+    pass
 
 
 class IonPeakRow(RowBase):
@@ -973,10 +973,10 @@ class IonPeakRow(RowBase):
         return self._values[26]
 
 
-class IonPeakDataTable(DataTableBase):
+class IonPeakDataTable(DataTableBase[IonPeakRow]):
     """Represents the IonPeak table, containing IonPeakRow objects."""
 
-    RowType = IonPeakRow
+    pass
 
 
 class DeconvolutionMethodRow(RowBase):
@@ -1183,10 +1183,10 @@ class DeconvolutionMethodRow(RowBase):
         return self._values[39]
 
 
-class DeconvolutionMethodDataTable(DataTableBase):
+class DeconvolutionMethodDataTable(DataTableBase[DeconvolutionMethodRow]):
     """Represents the DeconvolutionMethod table, containing DeconvolutionMethodRow objects."""
 
-    RowType = DeconvolutionMethodRow
+    pass
 
 
 class LibrarySearchMethodRow(RowBase):
@@ -1298,10 +1298,10 @@ class LibrarySearchMethodRow(RowBase):
         return self._values[20]
 
 
-class LibrarySearchMethodDataTable(DataTableBase):
+class LibrarySearchMethodDataTable(DataTableBase[LibrarySearchMethodRow]):
     """Represents the LibrarySearchMethod table, containing LibrarySearchMethodRow objects."""
 
-    RowType = LibrarySearchMethodRow
+    pass
 
 
 class IdentificationMethodRow(RowBase):
@@ -1393,10 +1393,10 @@ class IdentificationMethodRow(RowBase):
         return self._values[16]
 
 
-class IdentificationMethodDataTable(DataTableBase):
+class IdentificationMethodDataTable(DataTableBase[IdentificationMethodRow]):
     """Represents the IdentificationMethod table, containing IdentificationMethodRow objects."""
 
-    RowType = IdentificationMethodRow
+    pass
 
 
 class TargetCompoundRow(RowBase):
@@ -1688,10 +1688,10 @@ class TargetCompoundRow(RowBase):
         return self._values[56]
 
 
-class TargetCompoundDataTable(DataTableBase):
+class TargetCompoundDataTable(DataTableBase[TargetCompoundRow]):
     """Represents the TargetCompound table, containing TargetCompoundRow objects."""
 
-    RowType = TargetCompoundRow
+    pass
 
 
 class PeakRow(RowBase):
@@ -1893,10 +1893,10 @@ class PeakRow(RowBase):
         return self._values[38]
 
 
-class PeakDataTable(DataTableBase):
+class PeakDataTable(DataTableBase[PeakRow]):
     """Represents the Peak table, containing PeakRow objects."""
 
-    RowType = PeakRow
+    pass
 
 
 class TargetQualifierRow(RowBase):
@@ -1968,10 +1968,10 @@ class TargetQualifierRow(RowBase):
         return self._values[12]
 
 
-class TargetQualifierDataTable(DataTableBase):
+class TargetQualifierDataTable(DataTableBase[TargetQualifierRow]):
     """Represents the TargetQualifier table, containing TargetQualifierRow objects."""
 
-    RowType = TargetQualifierRow
+    pass
 
 
 class PeakQualifierRow(RowBase):
@@ -2048,10 +2048,10 @@ class PeakQualifierRow(RowBase):
         return self._values[13]
 
 
-class PeakQualifierDataTable(DataTableBase):
+class PeakQualifierDataTable(DataTableBase[PeakQualifierRow]):
     """Represents the PeakQualifier table, containing PeakQualifierRow objects."""
 
-    RowType = PeakQualifierRow
+    pass
 
 
 class AnalysisRow(RowBase):
@@ -2108,10 +2108,10 @@ class AnalysisRow(RowBase):
         return self._values[9]
 
 
-class AnalysisDataTable(DataTableBase):
+class AnalysisDataTable(DataTableBase[AnalysisRow]):
     """Represents the Analysis table, containing AnalysisRow objects."""
 
-    RowType = AnalysisRow
+    pass
 
 
 class TargetMatchMethodRow(RowBase):
@@ -2193,10 +2193,10 @@ class TargetMatchMethodRow(RowBase):
         return self._values[14]
 
 
-class TargetMatchMethodDataTable(DataTableBase):
+class TargetMatchMethodDataTable(DataTableBase[TargetMatchMethodRow]):
     """Represents the TargetMatchMethod table, containing TargetMatchMethodRow objects."""
 
-    RowType = TargetMatchMethodRow
+    pass
 
 
 class AuxiliaryMethodRow(RowBase):
@@ -2233,10 +2233,10 @@ class AuxiliaryMethodRow(RowBase):
         return self._values[5]
 
 
-class AuxiliaryMethodDataTable(DataTableBase):
+class AuxiliaryMethodDataTable(DataTableBase[AuxiliaryMethodRow]):
     """Represents the AuxiliaryMethod table, containing AuxiliaryMethodRow objects."""
 
-    RowType = AuxiliaryMethodRow
+    pass
 
 
 class BlankSubtractionMethodRow(RowBase):
@@ -2288,10 +2288,10 @@ class BlankSubtractionMethodRow(RowBase):
         return self._values[8]
 
 
-class BlankSubtractionMethodDataTable(DataTableBase):
+class BlankSubtractionMethodDataTable(DataTableBase[BlankSubtractionMethodRow]):
     """Represents the BlankSubtractionMethod table, containing BlankSubtractionMethodRow objects."""
 
-    RowType = BlankSubtractionMethodRow
+    pass
 
 
 class ExactMassRow(RowBase):
@@ -2373,7 +2373,7 @@ class ExactMassRow(RowBase):
         return self._values[14]
 
 
-class ExactMassDataTable(DataTableBase):
+class ExactMassDataTable(DataTableBase[ExactMassRow]):
     """Represents the ExactMass table, containing ExactMassRow objects."""
 
-    RowType = ExactMassRow
+    pass

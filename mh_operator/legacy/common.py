@@ -14,8 +14,6 @@ import os
 import sys
 from itertools import islice
 
-# sys.path.extend(os.getenv("PYTHONPATH", "").split(os.pathsep))
-
 
 def get_version():
     return "{}.{}.{}".format(
@@ -36,11 +34,11 @@ def get_args():
 
 
 def field_decorator(index, **kwargs):
+    # type: (int, dict) -> callable
     """
     Decorator to mark a method as a getter for a mutable record field
     and associate it with a specific index.
     """
-    # type: (int) -> callable
     assert index >= 0, "The index must be positive integer"
 
     def decorator(func):
@@ -59,17 +57,26 @@ def field_decorator(index, **kwargs):
 
 
 def add_metaclass(meta_type):
+    # type: (type) -> callable
     """
     six.add_metaclass fallback
     """
-    # type: (type) -> callable
-    try:
+    if sys.version_info.major == 2:
+        return lambda t: t
+    else:
         import six
 
         return six.add_metaclass(meta_type)
-    except ImportError:
-        assert sys.version_info.major == 2, "Python3 must have six installed"
-        return lambda t: t
+
+
+class SingletonMeta(type):
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            instance = super(SingletonMeta, cls).__call__(*args, **kwargs)
+            cls._instances[cls] = instance
+        return cls._instances[cls]
 
 
 class _RowData:
@@ -116,8 +123,8 @@ class RowBase(object):
     Base class for mutable record types, using RecordMeta.
     """
 
-    __metaclass__ = RowMeta  # _fields is populated by the metaclass
-    _fields = []
+    __metaclass__ = RowMeta  # this is for python2
+    _fields = []  # _fields is populated by the metaclass
 
     def __init__(self, *args, **kwargs):
         """
@@ -136,7 +143,7 @@ class RowBase(object):
         elif len(args) == len(self._fields) and len(args) > 1:  # tuple like init
             self._values = list(args)
         else:  # dict like init
-            (arg,) = args
+            (arg,) = args  # must be length one or raise error
             self._values = [arg[k] for k in self._fields]
 
     def __len__(self):
@@ -175,16 +182,45 @@ class RowBase(object):
         )
 
 
-class DataTableBase(object):
-    def __init__(self, *args):
-        """
-        Initializes the table instance.
+@add_metaclass(SingletonMeta)
+class _DataTableBase(object):
+    def __getitem__(self, row_type):
+        # type: (type) -> type | _DataTableBase
 
-        Args:
-            *args: Possible initial values from .Net
-        """
-        assert len(args) <= 1
-        self._values = [self.RowType(r) for r in (args[0] if args else [])]
+        def init(obj, *args):
+            assert len(args) <= 1
+            obj._values = [obj.RowType(r) for r in (args[0] if args else [])]
+
+        def getitem(obj, index):
+            return obj._values[index]
+
+        attrs = {
+            k: v
+            for k, v in type(self).__dict__.items()
+            if not k.startswith("__")
+            or k
+            in (
+                "__doc__",
+                "__len__",
+                "__iter__",
+                "__repr__",
+            )
+        }
+        attrs.update(
+            __init__=init,
+            __getitem__=getitem,
+            RowType=row_type,
+        )
+
+        return type(
+            str("{}_{}".format(type(self).__name__, row_type.__name__)),
+            type(self).__bases__,
+            attrs,
+        )
+
+    # Following should never be called from _DataTableBase because they will be passed to real base type
+    RowType = RowBase
+    _values = []  # type: list[RowBase]
 
     def __len__(self):
         # type: () -> int
@@ -194,14 +230,14 @@ class DataTableBase(object):
         # type: () -> iter
         return iter(self._values)
 
-    def __getitem__(self, index):
-        # type: (int) -> RowBase
-        return self._values[index]
-
     def __repr__(self):
+        # type: () -> str
         return "<{}: {} rows of {}>".format(
             type(self).__name__, len(self._values), self.RowType.__name__
         )
 
     def append(self, *args, **kwargs):
         return self._values.append(self.RowType(*args, **kwargs))
+
+
+DataTableBase = _DataTableBase()
