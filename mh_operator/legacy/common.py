@@ -10,18 +10,21 @@ from __future__ import (
 )
 
 import functools
+import logging
 import os
 import sys
 from itertools import islice
 
 
 def get_version():
+    # type: () -> str
     return "{}.{}.{}".format(
         sys.version_info.major, sys.version_info.minor, sys.version_info.micro
     )
 
 
-def get_args():
+def get_argv():
+    # type: () -> list
     prefix = "MH_CONSOLE_ARGS_"
     return [
         v
@@ -31,6 +34,13 @@ def get_args():
             if k.startswith(prefix)
         )
     ]
+
+
+def is_main(file_path):
+    # type: (str) -> bool
+    return os.path.abspath(os.environ.get("MH_CONSOLE_ARGS_0", "")) == os.path.abspath(
+        file_path
+    )
 
 
 def field_decorator(index, **kwargs):
@@ -77,6 +87,18 @@ class SingletonMeta(type):
             instance = super(SingletonMeta, cls).__call__(*args, **kwargs)
             cls._instances[cls] = instance
         return cls._instances[cls]
+
+
+@add_metaclass(SingletonMeta)
+class Logger(logging.Logger):
+    __metaclass__ = SingletonMeta  # this is for python2
+
+
+logger = Logger("legacy")
+
+
+def get_logger():
+    return Logger("legacy")
 
 
 class _RowData:

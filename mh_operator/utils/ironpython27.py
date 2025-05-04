@@ -103,7 +103,10 @@ def run_ironpython_script(
     # The script_path do not respect cwd specified, always use current real working directory
     if not Path(script_path).exists():
         raise SystemError(f"Error: IronPython script not found at '{script_path}'")
-    script_path = Path(script_path).absolute()
+    script_abs_path = str(Path(script_path).absolute())
+    if not Path(interpreter).exists():
+        raise SystemError(f"Error: IronPython interpreter not found at '{interpreter}'")
+    interpreter_abs_path = str(Path(interpreter).absolute())
 
     # relative executable path can be infered by specified cwd when not found under current directory
     cwd = Path("." if cwd is None else cwd).absolute()
@@ -122,13 +125,14 @@ def run_ironpython_script(
         script_args = []
     # For MassHunter executable, passing args as envrionments
     if interpreter.parts[-5:-1] == __DEFAULT_MH_BIN_DIR__.parts[-4:]:
-        command = [interpreter, f"-script={script_path}"]
+        command = [interpreter_abs_path, f"-script={script_abs_path}"]
+        assert env.setdefault(f"MH_CONSOLE_ARGS_0", script_abs_path) == script_abs_path
         for i, arg in enumerate(script_args):
             # One would better not specify environment MH_CONSOLE_ARGS_* from outside
-            assert env.setdefault(f"MH_CONSOLE_ARGS_{i}", arg) == arg
+            assert env.setdefault(f"MH_CONSOLE_ARGS_{i+1}", arg) == arg
         script_args = []
     else:
-        command = [interpreter, script_path, *script_args]
+        command = [interpreter_abs_path, script_abs_path, *script_args]
 
     if python_paths:
         env["PYTHONPATH"] = os.pathsep.join(
@@ -140,8 +144,8 @@ def run_ironpython_script(
         "\n".join(
             (
                 f"--- Running IronPython Script ---",
-                f"Executable: {interpreter}",
-                f"Script:     {script_path}",
+                f"Executable: {interpreter_abs_path}",
+                f"Script:     {script_abs_path}",
                 f"Arguments:  {script_args}",
                 f"CWD:        {cwd}",
                 f"Command:    {' '.join(command)}",
