@@ -101,6 +101,25 @@ def get_logger():
     return Logger("legacy")
 
 
+@add_metaclass(SingletonMeta)
+class GlobalState(object):
+    __metaclass__ = SingletonMeta  # this is for python2
+
+    def __init__(self):
+        self.state = {}
+
+    @property
+    def LibraryAccess(self):
+        return self.state["libacc"]
+
+    @LibraryAccess.setter
+    def LibraryAccess(self, obj):
+        self.state["libacc"] = obj
+
+
+global_state = GlobalState()
+
+
 class _RowData:
     _fields = []
     _values = []

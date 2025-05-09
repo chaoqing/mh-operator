@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mh-operator"
-version = "0.0.7"
+version = "0.0.8"
 description = "Awesome `mh-operator` provide interfaces and common routines for the Agilent MassHunter official SDK."
 readme = "README.md"
 license = "MIT"
@@ -62,6 +62,7 @@ Homepage = "https://github.com/chaoqing/mh-operator"
 [project.scripts]
 "mh-operator" = "mh_operator.__main__:app"
 "shebang" = "mh_operator.utils.ironpython27:main"
+"mh-operator-setup" = "mh_operator.utils.ironpython27:install_legacy_import_helper"
 
 [tool.black]
 # https://github.com/psf/black

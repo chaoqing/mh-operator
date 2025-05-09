@@ -294,5 +294,47 @@ def main(
             Path(script).unlink()
 
 
+@click.command()
+@click.option(
+    "--mh",
+    default=__DEFAULT_MH_BIN_DIR__,
+    type=click.Path(exists=True, file_okay=False, resolve_path=True),
+    show_default=True,
+    help="The bin path of the installed Mass Hunter",
+)
+@click.option(
+    "--ipy",
+    default=__DEFAULT_PY275_EXE__,
+    type=click.Path(exists=True, dir_okay=False, resolve_path=True),
+    show_default=True,
+    help="The ipy.exe path of the installed Python2.7",
+)
+def install_legacy_import_helper(
+    mh: Path = __DEFAULT_MH_BIN_DIR__,
+    ipy: Path = __DEFAULT_PY275_EXE__,
+):
+    """Install the mh_operator.legacy into Python2.7 environment"""
+    legacy_script = Path(__file__).parent / ".." / "legacy" / "__init__.py"
+
+    mh_exe_path = {
+        "UAC": Path(mh) / "UnknownsAnalysisII.Console.exe",
+        "LEC": Path(mh) / "LibraryEdit.Console.exe",
+        "QC": Path(mh) / "QuantConsole.exe",
+    }
+
+    for interpreter, exe_path in mh_exe_path.items():
+        logger.info(f"Install mh-operator legacy for {interpreter}: {exe_path}")
+        returncode, stdout, _ = run_ironpython_script(
+            legacy_script,
+            exe_path,
+            extra_envs=["MH_CONSOLE_COMMAND_STRING=print(sys.path)"],
+            capture_type=CaptureType.SEPERATE,
+        )
+
+        tgt_path = next(p for p in eval(stdout.splitlines()[-1]) if "MassHunter" in p)
+
+        (Path(tgt_path) / "mh_operator_legacy.py").symlink_to(legacy_script)
+
+
 if __name__ == "__main__":
     main()
