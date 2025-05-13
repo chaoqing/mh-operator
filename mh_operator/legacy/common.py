@@ -13,7 +13,11 @@ import functools
 import logging
 import os
 import sys
-from itertools import islice
+from itertools import chain, islice
+
+__DEFAULT_MH_BIN_DIR__ = os.path.join(
+    "C:\\", "Program Files", "Agilent", "MassHunter", "Workstation", "Quant", "bin"
+)
 
 
 def get_version():
@@ -91,14 +95,23 @@ class SingletonMeta(type):
 
 @add_metaclass(SingletonMeta)
 class Logger(logging.Logger):
-    __metaclass__ = SingletonMeta  # this is for python2
+    __metaclass__ = SingletonMeta
 
-
-logger = Logger("legacy")
+    def __init__(self, *args, **kwargs):
+        super(Logger, self).__init__(*args, **kwargs)
+        handler = logging.StreamHandler()
+        handler.setFormatter(
+            logging.Formatter(fmt="[%(levelname)s]%(name)s: %(message)s")
+        )
+        self.addHandler(handler)
 
 
 def get_logger():
-    return Logger("legacy")
+    # type: () -> Logger
+    return Logger("mh-operator-legacy")
+
+
+logger = get_logger()
 
 
 @add_metaclass(SingletonMeta)
@@ -115,6 +128,14 @@ class GlobalState(object):
     @LibraryAccess.setter
     def LibraryAccess(self, obj):
         self.state["libacc"] = obj
+
+    @property
+    def UADataAccess(self):
+        return self.state["uadacc"]
+
+    @UADataAccess.setter
+    def UADataAccess(self, obj):
+        self.state["uadacc"] = obj
 
 
 global_state = GlobalState()
@@ -282,3 +303,61 @@ class _DataTableBase(object):
 
 
 DataTableBase = _DataTableBase()
+
+
+class DataTablesBase(object):
+    def __init__(self):
+        self.tables = {}
+
+    def to_json(self):
+        # type: () -> str
+        import json
+
+        class fallback_encoder(json.JSONEncoder):
+            def default(self, obj):
+                try:
+                    return super(fallback_encoder, self).default(obj)
+                except TypeError:
+                    return str(obj)
+
+        return json.dumps(self.tables, sort_keys=True, cls=fallback_encoder)
+
+
+def table_property(table_class):
+    # type: (type) -> callable
+    fields = table_class.RowType._fields
+
+    def decorator(func):
+        # type: (callable) -> object
+        """
+        Decorator to mark a method as a getter for a data table
+        """
+
+        @functools.wraps(func)
+        def getter(self):
+            # type: (DataTablesBase) -> dict
+            return self.tables[func.__name__]
+
+        def setter(self, obj):
+            # type: (DataTablesBase, list) -> None
+            import ast
+
+            def type_map(o):
+                if type(o) is bool:
+                    return o == True
+                if str(o) == "":
+                    return None
+                return o
+
+            values = zip(
+                *[
+                    tuple(type_map(r[c]) for c in fields)
+                    for r in chain.from_iterable(obj)
+                ]
+            )
+
+            self.tables[func.__name__] = {k: v for k, v in zip(fields, values)}
+
+        return property(getter, setter)
+
+    return decorator

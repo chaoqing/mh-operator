@@ -49,5 +49,6 @@ except ImportError:
 
 from os import environ
 
-if environ.get("MH_CONSOLE_COMMAND_STRING", "") != "":
-    exec(environ["MH_CONSOLE_COMMAND_STRING"])
+command_str = environ.pop("MH_CONSOLE_COMMAND_STRING", "")
+if command_str != "" and __name__ not in ("mh_operator.legacy", "mh_operator_legacy"):
+    exec(command_str)  # nosec

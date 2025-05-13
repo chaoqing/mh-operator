@@ -24,7 +24,9 @@ mccabe==0.7.0
 mypy==0.910
 mypy-extensions==0.4.4
 nodeenv==1.9.1
+numpy==2.2.5
 packaging==25.0
+pandas==2.2.3
 pathspec==0.12.1
 pbr==6.1.1
 pip==25.1
@@ -39,6 +41,8 @@ pytest==6.2.5
 pytest-cov==3.0.0
 pytest-html==3.2.0
 pytest-metadata==2.0.4
+python-dateutil==2.9.0.post0
+pytz==2025.2
 pyupgrade==2.38.4
 pyyaml==6.0.2
 requests==2.32.3
@@ -53,8 +57,10 @@ tokenize-rt==4.2.1
 toml==0.10.2
 tomli==2.2.1
 tomlkit==0.13.2
-typer==0.4.2
+typer==0.15.3
 typing-extensions==4.13.2
+tzdata==2025.2
 urllib3==2.4.0
 virtualenv==20.30.0
 wrapt==1.17.2
+xlsxwriter==3.2.3

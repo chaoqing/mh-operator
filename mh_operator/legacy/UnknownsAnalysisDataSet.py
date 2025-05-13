@@ -11,7 +11,13 @@ from __future__ import (
 
 import datetime
 
-from mh_operator.legacy.common import DataTableBase, RowBase, field_decorator
+from mh_operator.legacy.common import (
+    DataTableBase,
+    DataTablesBase,
+    RowBase,
+    field_decorator,
+    table_property,
+)
 
 
 class BatchRow(RowBase):
@@ -2377,3 +2383,73 @@ class ExactMassDataTable(DataTableBase[ExactMassRow]):
     """Represents the ExactMass table, containing ExactMassRow objects."""
 
     pass
+
+
+class DataTables(DataTablesBase):
+    @table_property(BatchDataTable)
+    def Batch(self):
+        pass
+
+    @table_property(SampleDataTable)
+    def Sample(self):
+        pass
+
+    @table_property(ComponentDataTable)
+    def Component(self):
+        pass
+
+    @table_property(HitDataTable)
+    def Hit(self):
+        pass
+
+    @table_property(IonPeakDataTable)
+    def IonPeak(self):
+        pass
+
+    @table_property(DeconvolutionMethodDataTable)
+    def DeconvolutionMethod(self):
+        pass
+
+    @table_property(LibrarySearchMethodDataTable)
+    def LibrarySearchMethod(self):
+        pass
+
+    @table_property(IdentificationMethodDataTable)
+    def IdentificationMethod(self):
+        pass
+
+    @table_property(TargetCompoundDataTable)
+    def TargetCompound(self):
+        pass
+
+    @table_property(PeakDataTable)
+    def Peak(self):
+        pass
+
+    @table_property(TargetQualifierDataTable)
+    def TargetQualifier(self):
+        pass
+
+    @table_property(PeakQualifierDataTable)
+    def PeakQualifier(self):
+        pass
+
+    @table_property(AnalysisDataTable)
+    def Analysis(self):
+        pass
+
+    @table_property(TargetMatchMethodDataTable)
+    def TargetMatchMethod(self):
+        pass
+
+    @table_property(AuxiliaryMethodDataTable)
+    def AuxiliaryMethod(self):
+        pass
+
+    @table_property(BlankSubtractionMethodDataTable)
+    def BlankSubtractionMethod(self):
+        pass
+
+    @table_property(ExactMassDataTable)
+    def ExactMass(self):
+        pass

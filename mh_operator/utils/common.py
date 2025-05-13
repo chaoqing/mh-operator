@@ -45,11 +45,11 @@ class PackageLogger(metaclass=SingletonMeta):
         self._logger.setLevel(level.upper())
 
 
-logger = PackageLogger().get_logger()
-
-
 def get_logger():
     return PackageLogger().get_logger()
+
+
+logger = get_logger()
 
 
 def set_logger_level(level):
