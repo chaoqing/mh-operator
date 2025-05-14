@@ -2453,3 +2453,54 @@ class DataTables(DataTablesBase):
     @table_property(ExactMassDataTable)
     def ExactMass(self):
         pass
+
+    def ComponentsWithBestPrimaryHit(self, batch_id=0, sample_id=None):
+        # type: (int, int) -> dict
+        component_table = self.Component
+        hit_table = self.Hit
+
+        component_table_keys = [
+            "BatchID",
+            "SampleID",
+            "DeconvolutionMethodID",
+            "ComponentID",
+        ]
+        hit_table_keys = component_table_keys + ["HitID"]
+        hit_table_index = {
+            k: r for r, k in enumerate(zip(*[hit_table[c] for c in hit_table_keys]))
+        }
+
+        component_rows, hit_rows = zip(
+            *[
+                (r, hit_table_index[(bid, sid, did, cid, hid)])
+                # each row in component table
+                for r, (bid, sid, did, cid, hid, ok) in enumerate(
+                    zip(
+                        *[
+                            component_table[c]
+                            for c in component_table_keys + ["PrimaryHitID", "BestHit"]
+                        ]
+                    )
+                )
+                # only selected batch/sample and best primary hit
+                if ok and bid == batch_id and (sample_id is None or sid == sample_id)
+            ]
+        )
+
+        components_with_best_primary_hit = {
+            k: [v[r] for r in component_rows] for k, v in component_table.items()
+        }
+        components_with_best_primary_hit.update(
+            **{k: [v[r] for r in hit_rows] for k, v in hit_table.items()}
+        )
+        return components_with_best_primary_hit
+
+    def to_json(self, processed=False):
+        # type: (bool) -> str
+        if processed:
+            self.tables["ComponentsWithBestPrimaryHit"] = (
+                self.ComponentsWithBestPrimaryHit()
+            )
+        else:
+            self.tables.pop("ComponentsWithBestPrimaryHit", {})
+        return super(DataTables, self).to_json()

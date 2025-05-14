@@ -178,8 +178,6 @@ def analysis_samples(
         logger.info("Cleaning existing analysis {}".format(analysis_file))
         os.unlink(analysis_file)
 
-    tables_data = DataTables()
-
     _commands.NewAnalysis(batch_folder, analysis_name)
     logger.info(
         "Analysis project {} created under {}".format(analysis_name, batch_folder)
@@ -203,6 +201,14 @@ def analysis_samples(
         assert istd_sample_id is not None, "ISTD sample not correctly set"
 
         _commands.AnalyzeSamples(batch_id, istd_sample_id)
+
+        tables_data = DataTables()
+        tables_data.Component = [uadacc.GetComponents(batch_id, istd_sample_id)]
+        tables_data.Hit = [uadacc.GetHits(batch_id, istd_sample_id)]
+        istd_sample_components = tables_data.ComponentsWithBestPrimaryHit(
+            batch_id, istd_sample_id
+        )
+        istd.find_istd_components(istd_sample_components)
 
     if istd is not None:
         pass

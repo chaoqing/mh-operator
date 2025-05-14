@@ -320,7 +320,9 @@ class DataTablesBase(object):
                 except TypeError:
                     return str(obj)
 
-        return json.dumps(self.tables, sort_keys=True, cls=fallback_encoder)
+        return json.dumps(
+            self.tables, sort_keys=True, cls=fallback_encoder, ensure_ascii=False
+        )
 
 
 def table_property(table_class):
@@ -344,8 +346,10 @@ def table_property(table_class):
 
             def type_map(o):
                 if type(o) is bool:
+                    # .Net Bool converted to "True/False" which is invalid json
                     return o == True
-                if str(o) == "":
+                if type(o) is not str and str(o) == "":
+                    # Pyton2.7 unicode string may introduce error when `str(o)`
                     return None
                 return o
 

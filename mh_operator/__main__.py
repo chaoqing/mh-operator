@@ -56,6 +56,12 @@ def install_legacy_import_helper(
             help="The ipy.exe path of the installed Python2.7",
         ),
     ] = __DEFAULT_PY275_EXE__,
+    symlink: Annotated[
+        bool,
+        typer.Option(
+            help="Do symlink instead of copy",
+        ),
+    ] = False,
 ):
     """Install the mh_operator.legacy into Python2.7 environment"""
 
@@ -68,6 +74,22 @@ def install_legacy_import_helper(
         "LEC": Path(mh) / "LibraryEdit.Console.exe",
         "QC": Path(mh) / "QuantConsole.exe",
     }
+
+    def install_to(tgt, src):
+        if tgt.exists():
+            tgt.unlink()
+
+        logger.debug(f"{'Symlink' if symlink else 'Copy'} `{src}` to `{tgt}`")
+        if symlink:
+            tgt.symlink_to(src)
+        else:
+            tgt.write_bytes(src.read_bytes())
+
+    logger.info(f"Install mh-operator legacy for {ipy}")
+    install_to(
+        Path(ipy).parent / "Lib" / "site-packages" / "mh_operator_legacy.py",
+        legacy_script,
+    )
 
     for interpreter, exe_path in mh_exe_path.items():
         logger.info(f"Install mh-operator legacy for {interpreter}: {exe_path}")
@@ -84,16 +106,7 @@ def install_legacy_import_helper(
             p for p in ast.literal_eval(stdout.splitlines()[-1]) if "MassHunter" in p
         )
 
-        tgt_file = Path(tgt_path) / "mh_operator_legacy.py"
-        if tgt_file.exists():
-            tgt_file.unlink()
-        tgt_file.symlink_to(legacy_script)
-
-    tgt_file = Path(ipy).parent / "Lib" / "site-packages" / "mh_operator_legacy.py"
-
-    if tgt_file.exists():
-        tgt_file.unlink()
-    tgt_file.symlink_to(legacy_script)
+        install_to(Path(tgt_path) / "mh_operator_legacy.py", legacy_script)
 
 
 @app.command(name="extract-uaf")
@@ -110,6 +123,12 @@ def extract_mass_hunter_analysis_file(
             help="The bin path of the installed Mass Hunter",
         ),
     ] = __DEFAULT_MH_BIN_DIR__,
+    processed: Annotated[
+        bool,
+        typer.Option(
+            help="Do processing on the tables inside MassHunter script",
+        ),
+    ] = False,
     output: Annotated[
         str,
         typer.Option(
@@ -131,7 +150,7 @@ def extract_mass_hunter_analysis_file(
             "from mh_operator.legacy.common import global_state",
             "global_state.UADataAccess = UADataAccess",
             "from mh_operator.legacy.UnknownsAnalysis import export_analysis",
-            f"print(export_analysis(r'{Path(uaf).absolute()}').to_json())",
+            f"print(export_analysis(r'{Path(uaf).absolute()}').to_json({processed}))",
         )
     )
     logger.debug(f"use {legacy_script} to exec code '{commands}'")

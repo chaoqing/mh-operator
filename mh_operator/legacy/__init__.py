@@ -51,4 +51,9 @@ from os import environ
 
 command_str = environ.pop("MH_CONSOLE_COMMAND_STRING", "")
 if command_str != "" and __name__ not in ("mh_operator.legacy", "mh_operator_legacy"):
-    exec(command_str)  # nosec
+    try:
+        exec(command_str)  # nosec
+    except:
+        import traceback
+
+        traceback.print_exc()
