@@ -2491,7 +2491,11 @@ class DataTables(DataTablesBase):
             k: [v[r] for r in component_rows] for k, v in component_table.items()
         }
         components_with_best_primary_hit.update(
-            **{k: [v[r] for r in hit_rows] for k, v in hit_table.items()}
+            **{
+                k: [v[r] for r in hit_rows]
+                for k, v in hit_table.items()
+                if k not in hit_table_keys
+            }
         )
         return components_with_best_primary_hit
 

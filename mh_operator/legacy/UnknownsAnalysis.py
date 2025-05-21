@@ -73,48 +73,121 @@ class ISTD(object):
     def __init__(
         self,
         istd_rt,
-        istd_value,
+        rt_delta=(0.5, 0.5),
+        istd_value=None,
         istd_name=None,
+        istd_cas=None,
+        istd_index=None,
         recover_rt=None,
         recover_name=None,
+        recover_value=None,
         from_sample=None,
     ):
         self.istd_rt = istd_rt
+        self.l_rt_delta, self.r_rt_delta = (
+            (rt_delta, rt_delta) if isinstance(rt_delta, (int, float)) else rt_delta
+        )
         self.istd_value = istd_value
         self.istd_name = istd_name
+        self.istd_cas = istd_cas
+        self.istd_index = istd_index
         self.recover_rt = recover_rt
         self.recover_name = recover_name
+        self.recover_value = recover_value
+
+        assert self.istd_value is not None or (
+            self.recover_value is not None and self.recover_rt is not None
+        ), "recovery compound must be set when ISTD value not set"
 
         self.from_sample = from_sample
 
-    def find_istd_components(self, tables):
-        # type: (DataTables) -> TargetCompoundRow
-        target = UnknownsAnalysisDataSet.TargetCompoundRow()
+    def to_dict(self):
+        # type: () -> dict
+        return dict(
+            ISTDFlag=True,
+            MZ=0.0,
+            RetentionTime=self.istd_rt,
+            LeftRetentionTimeDelta=self.l_rt_delta,
+            RightRetentionTimeDelta=self.r_rt_delta,
+            RetentionTimeDeltaUnits="Minutes",
+            CompoundName=self.istd_name,
+            CASNumber=self.istd_cas,
+            ISTDConcentration=self.istd_value,
+        )
 
-        hit = UnknownsAnalysisDataSet.HitRow()
-        component = UnknownsAnalysisDataSet.ComponentRow()
+    def find_istd_compound(self, tables, sample_id=None):
+        # type: (dict, int) -> dict
+        def find_component(rt, l_rt, r_rt, name, s_id):
+            rt_diffs = (
+                (abs(_rt - rt), r)
+                for r, (_rt, _name, _id) in enumerate(
+                    zip(
+                        tables["RetentionTime"],
+                        tables["CompoundName"],
+                        tables["SampleID"],
+                    )
+                )
+                if _rt > l_rt
+                and _rt < r_rt
+                and (name is None or _name == name)
+                and (id is None or _id == s_id)
+            )
+            try:
+                _, row = min(rt_diffs)
+                return row
+            except ValueError:
+                logger.warn(
+                    "no compound candidate found in R.T. ({}-{}, {}+{}) with name {}".format(
+                        rt, rt - l_rt, rt, r_rt - rt, name
+                    )
+                )
+                return None
 
-        target.CompoundName = hit.CompoundName
-        target.CASNumber = hit.CASNumber
-        target.ISTDFlag = True
-        target.ISTDConcentration = self.istd_value
-        target.RetentionTime = component.RetentionTime
-        target.RetentionIndex = component.RetentionIndex
+        row = find_component(
+            self.istd_rt,
+            self.istd_rt - self.l_rt_delta,
+            self.istd_rt + self.r_rt_delta,
+            self.istd_name,
+            sample_id,
+        )
+        assert row is not None, "Did not find the ISTD compound"
 
-        target.LeftRetentionTimeDelta = 0.5
-        target.RightRetentionTimeDelta = 0.5
-        target.RetentionTimeDeltaUnits = "Minutes"
+        target = {
+            k: tables[k][row]
+            for k in ("CompoundName", "CASNumber", "RetentionTime", "RetentionIndex")
+        }
 
-        target.MZ = 0.0
+        if self.recover_value is not None:
+            recover_row = find_component(
+                self.recover_rt,
+                self.recover_rt - self.l_rt_delta,
+                self.recover_rt + self.r_rt_delta,
+                self.recover_name,
+                sample_id,
+            )
+            assert (
+                recover_row is not None
+            ), "Did not find the recover compound for ISTD value setting"
 
+            target["ISTDConcentration"] = (
+                tables["Area"][row] * self.recover_value / tables["Area"][recover_row]
+            )
+
+        logger.info("ISTD compound info to be updated: {}".format(target))
         return target
 
-    def target_operations(sample_ids, target_id=0, batch_id=0):
-        # type: (list, int) -> list
+    @staticmethod
+    def target_operations(sample_ids, column_values, target_id=0, batch_id=0):
+        # type: (list, dict, int, int) -> list
+        kv = [
+            KeyValue(k, v)
+            for k, v in column_values.items()
+            if v is not None and k != "SampleID"
+        ]
         return [
             AddTargetCompoundParameter(batch_id, s, target_id) for s in sample_ids
         ] + [
-            TargetCompoundColumnValuesParameter(batch_id, s, target_id, [KeyValue()])
+            TargetCompoundColumnValuesParameter(batch_id, s, target_id, kv)
             for s in sample_ids
         ]
 
@@ -196,22 +269,54 @@ def analysis_samples(
     _commands.LoadMethodToAllSamples(analysis_method)
     logger.info("Method {} loaded to all samples".format(analysis_method))
 
-    if istd is not None and istd.from_sample is not None:
-        istd_sample_id = samples_id.get(os.path.realpath(istd.from_sample), None)
-        assert istd_sample_id is not None, "ISTD sample not correctly set"
-
-        _commands.AnalyzeSamples(batch_id, istd_sample_id)
-
-        tables_data = DataTables()
-        tables_data.Component = [uadacc.GetComponents(batch_id, istd_sample_id)]
-        tables_data.Hit = [uadacc.GetHits(batch_id, istd_sample_id)]
-        istd_sample_components = tables_data.ComponentsWithBestPrimaryHit(
-            batch_id, istd_sample_id
-        )
-        istd.find_istd_components(istd_sample_components)
-
     if istd is not None:
-        pass
+        target_compound = istd.to_dict()
+
+        if istd.from_sample is not None:
+            istd_sample_id = samples_id.get(os.path.basename(istd.from_sample), None)
+            assert istd_sample_id is not None, "ISTD sample not correctly set"
+
+            logger.info(
+                "Analysis one sample ({}) with id {} to setup ISTD".format(
+                    istd.from_sample, istd_sample_id
+                )
+            )
+            _commands.AnalyzeSamples(batch_id, istd_sample_id, True)
+
+            tables_data = DataTables()
+            tables_data.Component = [uadacc.GetComponents(batch_id, istd_sample_id)]
+            tables_data.Hit = [uadacc.GetHits(batch_id, istd_sample_id)]
+            istd_sample_components = tables_data.ComponentsWithBestPrimaryHit(
+                batch_id, istd_sample_id
+            )
+            target_compound.update(
+                **istd.find_istd_compound(
+                    istd_sample_components, sample_id=istd_sample_id
+                )
+            )
+
+        logger.info("Apply ISTD target compound info: {}".format(target_compound))
+        assert all(
+            target_compound.get(k, None) is not None
+            for k in (
+                "ISTDFlag",
+                "MZ",
+                "RetentionTime",
+                "LeftRetentionTimeDelta",
+                "RightRetentionTimeDelta",
+                "RetentionTimeDeltaUnits",
+                "CompoundName",
+                "ISTDConcentration",
+            )
+        ), "Must set valid values for the ISTD table"
+        _commands.SetTargets(
+            istd.target_operations(
+                samples_id.values(),
+                target_compound,
+                target_id=0,
+                batch_id=batch_id,
+            )
+        )
 
     _commands.AnalyzeAll(True)
     _commands.SaveAnalysis()

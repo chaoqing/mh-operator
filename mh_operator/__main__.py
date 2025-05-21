@@ -163,9 +163,9 @@ def extract_mass_hunter_analysis_file(
         capture_type=CaptureType.SEPERATE,
     )
     if returncode != 0:
-        logger.info(f"UAC return with {returncode} and stderr: =======\n{stderr}")
+        logger.info(f"UAC return with {returncode} and stderr:\n{stderr}")
 
-    logger.debug(f"UAC return stdout: ======\n {stdout}")
+    logger.debug(f"UAC return stdout:\n {stdout}")
     import json
 
     json_data = json.loads(stdout.split("\n", maxsplit=2)[-1])
