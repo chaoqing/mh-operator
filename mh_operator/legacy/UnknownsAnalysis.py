@@ -72,7 +72,7 @@ class Sample(object):
 class ISTD(object):
     def __init__(
         self,
-        istd_rt,
+        istd_rt=None,
         rt_delta=(0.5, 0.5),
         istd_value=None,
         istd_name=None,

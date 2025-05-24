@@ -1,14 +1,14 @@
 # type: ignore[attr-defined]
-from typing import Annotated, List, Optional
+from typing import Annotated, List, Optional, Tuple
 
 from enum import Enum
 from pathlib import Path
-from random import choice
 
 import typer
 from rich.console import Console
 
 from mh_operator import version
+from mh_operator.utils.code_generator import function_to_string
 from mh_operator.utils.common import logger
 from mh_operator.utils.ironpython27 import (
     __DEFAULT_MH_BIN_DIR__,
@@ -97,7 +97,7 @@ def install_legacy_import_helper(
             legacy_script,
             exe_path,
             python_paths=[str(Path(__file__).parent / "..")],
-            extra_envs=["MH_CONSOLE_COMMAND_STRING=print(sys.path)"],
+            extra_envs=["MH_CONSOLE_COMMAND_STRING=print(repr(sys.path))"],
             capture_type=CaptureType.SEPERATE,
         )
         import ast
@@ -145,14 +145,16 @@ def extract_mass_hunter_analysis_file(
     assert Path(uac_exe).exists()
     assert Path(uaf).exists()
 
-    commands = ";".join(
-        (
-            "from mh_operator.legacy.common import global_state",
-            "global_state.UADataAccess = UADataAccess",
-            "from mh_operator.legacy.UnknownsAnalysis import export_analysis",
-            f"print(export_analysis(r'{Path(uaf).absolute()}').to_json({processed}))",
-        )
-    )
+    @function_to_string(return_type="asis", oneline=True)
+    def _commands(uaf: str, processed: bool):
+        from mh_operator.legacy.common import global_state
+
+        global_state.UADataAccess = UADataAccess
+        from mh_operator.legacy.UnknownsAnalysis import export_analysis
+
+        return export_analysis(uaf).to_json(processed)
+
+    commands = _commands(str(Path(uaf).absolute()), processed)
     logger.debug(f"use {legacy_script} to exec code '{commands}'")
 
     returncode, stdout, stderr = run_ironpython_script(
@@ -221,6 +223,27 @@ def analysis_samples(
             help="The Mass Hunter report method path (.m)",
         ),
     ] = None,
+    istd_rt: Annotated[
+        float,
+        typer.Option(
+            "--istd-rt",
+            help="The ISTD compound retention time (min.)",
+        ),
+    ] = None,
+    istd_name: Annotated[
+        str,
+        typer.Option(
+            "--istd-name",
+            help="The ISTD compound name",
+        ),
+    ] = None,
+    istd_value: Annotated[
+        float,
+        typer.Option(
+            "--istd-value",
+            help="The ISTD compound concentration",
+        ),
+    ] = None,
     mh: Annotated[
         Path,
         typer.Option(
@@ -234,18 +257,52 @@ def analysis_samples(
     uac_exe = Path(mh) / "UnknownsAnalysisII.Console.exe"
     assert Path(uac_exe).exists()
 
-    commands = ";".join(
-        (
-            "from mh_operator.legacy.common import global_state",
-            "global_state.UADataAccess = UADataAccess",
-            "from mh_operator.legacy.UnknownsAnalysis import analysis_samples, Sample",
-            "analysis_samples(r'{}', [{}], r'{}', istd=None, report_method={})".format(
-                output,
-                ", ".join([f"Sample(r'{s.absolute()}')" for s in samples]),
-                analysis_method,
-                f"r'{report_method}'" if report_method else None,
-            ),
+    @function_to_string(return_type="none", oneline=False)
+    def _commands(
+        uaf_name: str,
+        sample_paths: list[tuple[tuple, dict]],
+        analysis_method: str,
+        report_method: str | None = None,
+        istd_params: dict | None = None,
+    ):
+        from mh_operator.legacy.common import global_state
+
+        global_state.UADataAccess = UADataAccess
+        from mh_operator.legacy.UnknownsAnalysis import ISTD, Sample, analysis_samples
+
+        if istd_params is not None:
+            istd = ISTD(**istd_params)
+        else:
+            istd = None
+
+        analysis_samples(
+            uaf_name,
+            [Sample(*args, **kwargs) for args, kwargs in sample_paths],
+            analysis_method,
+            istd=istd,
+            report_method=report_method,
         )
+
+    if istd_rt is not None:
+        assert (
+            istd_name is not None and istd_value is not None
+        ), "rt, name, and value must be all set for ISTD to work"
+        istd_params = dict(
+            istd_rt=istd_rt,
+            istd_name=istd_name,
+            istd_value=istd_value,
+        )
+    else:
+        istd_params = None
+
+    commands = _commands(
+        output,
+        [((str(Path(s).absolute()),), {"type": "Sample"}) for s in samples],
+        str(Path(analysis_method).absolute()),
+        report_method=(
+            str(Path(report_method).absolute()) if report_method is not None else None
+        ),
+        istd_params=istd_params,
     )
     logger.debug(f"use {legacy_script} to exec code '{commands}'")
 

@@ -373,6 +373,17 @@ def transform_return(body: list[ast.AST], return_type="none") -> list[ast.AST]:
         ast.copy_location(print_stmt, return_stmt)
         body.append(print_stmt)
 
+    if return_type == "asis":
+        print_stmt = ast.Expr(
+            value=ast.Call(
+                func=ast.Name(id="print", ctx=ast.Load()),
+                args=[expr],
+                keywords=[],
+            )
+        )
+        ast.copy_location(print_stmt, return_stmt)
+        body.append(print_stmt)
+
     return body
 
 
