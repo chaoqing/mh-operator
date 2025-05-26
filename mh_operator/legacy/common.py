@@ -321,7 +321,7 @@ class DataTablesBase(object):
                     return str(obj)
 
         return json.dumps(
-            self.tables, sort_keys=True, cls=fallback_encoder, ensure_ascii=True
+            self.tables, sort_keys=True, cls=fallback_encoder, ensure_ascii=False
         )
 
 

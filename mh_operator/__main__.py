@@ -1,5 +1,5 @@
 # type: ignore[attr-defined]
-from typing import Annotated, List, Optional, Tuple
+from typing import Annotated, List, Literal, Optional, Tuple
 
 from enum import Enum
 from pathlib import Path
@@ -244,6 +244,24 @@ def analysis_samples(
             help="The ISTD compound concentration",
         ),
     ] = None,
+    mode: Annotated[
+        str,
+        typer.Option(
+            "--mode",
+            callback=(
+                lambda m: {
+                    k: n
+                    for n, *a in (("x", "c", "create"), ("w", "write"), ("a", "append"))
+                    for k in (n, *a)
+                }[m.lower()]
+            ),
+            help="""The mode while open the analysis file,\n\n
+            x/c/create: create new uaf file, raise error when uaf already exist;\n
+            w/write: create new uaf file, old uaf removed at first;\n
+            a/append: append to old uaf file, create new one if not exist;
+            """,
+        ),
+    ] = "x",
     mh: Annotated[
         Path,
         typer.Option(
@@ -256,6 +274,14 @@ def analysis_samples(
 
     uac_exe = Path(mh) / "UnknownsAnalysisII.Console.exe"
     assert Path(uac_exe).exists()
+
+    (batch_folder,) = {Path(s).absolute().parent for s in samples}
+    analysis_file = batch_folder / "UnknownsResults" / output
+    if mode == "x":
+        assert not analysis_file.exists()
+    elif mode == "w":
+        logger.info(f"Cleaning existing analysis {analysis_file}")
+        analysis_file.unlink(missing_ok=True)
 
     @function_to_string(return_type="none", oneline=False)
     def _commands(

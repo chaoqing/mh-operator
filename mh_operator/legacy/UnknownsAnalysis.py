@@ -246,15 +246,19 @@ def analysis_samples(
     # type: (str, list, str, ISTD, str) -> dict
     (batch_folder,) = set(os.path.split(s.path)[0] for s in samples)
     analysis_file = os.path.join(batch_folder, "UnknownsResults", analysis_name)
+    append_mode = os.path.exists(analysis_file)
 
-    if os.path.exists(analysis_file):
-        logger.info("Cleaning existing analysis {}".format(analysis_file))
-        os.unlink(analysis_file)
-
-    _commands.NewAnalysis(batch_folder, analysis_name)
-    logger.info(
-        "Analysis project {} created under {}".format(analysis_name, batch_folder)
-    )
+    if append_mode:
+        logger.warn("Append mode not fully supported")
+        _commands.OpenAnalysis(batch_folder, analysis_name, False)
+        logger.info(
+            "Analysis project {} opened under {}".format(analysis_name, batch_folder)
+        )
+    else:
+        _commands.NewAnalysis(batch_folder, analysis_name)
+        logger.info(
+            "Analysis project {} created under {}".format(analysis_name, batch_folder)
+        )
 
     _commands.AddSamples(System.Array[System.String]([s.path for s in samples]))
     batch_id = next(iter(uadacc.GetBatches())).BatchID
@@ -269,7 +273,7 @@ def analysis_samples(
     _commands.LoadMethodToAllSamples(analysis_method)
     logger.info("Method {} loaded to all samples".format(analysis_method))
 
-    if istd is not None:
+    if istd is not None and not append_mode:
         target_compound = istd.to_dict()
 
         if istd.from_sample is not None:
