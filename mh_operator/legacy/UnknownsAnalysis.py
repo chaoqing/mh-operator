@@ -54,7 +54,7 @@ from mh_operator.legacy.UnknownsAnalysisDataSet import DataTables, TargetCompoun
 
 class Sample(object):
     def __init__(self, path, type="Sample"):
-        self.path = os.path.realpath(path)
+        self.path = os.path.abspath(path)
         self.type = type
 
     @property
@@ -346,7 +346,7 @@ def analysis_samples(
                 ),
                 "-BP={}".format(batch_folder),
                 "-AF={}".format(analysis_name),
-                "-M={}".format(os.path.realpath(report_method)),
+                "-M={}".format(os.path.abspath(report_method)),
                 "-OP={}".format(report_path),
             ]
         )

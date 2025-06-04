@@ -1,6 +1,7 @@
 # type: ignore[attr-defined]
-from typing import Annotated, List, Literal, Optional, Tuple
+from typing import Annotated
 
+import os
 from enum import Enum
 from pathlib import Path
 
@@ -192,12 +193,35 @@ def extract_mass_hunter_analysis_file(
                 pd.DataFrame(v).to_excel(writer, sheet_name=t, index=False)
 
 
+class SampleType(str, Enum):
+    Sample = S = "Sample"
+    Blank = B = "Blank"
+    MatrixBlank = MB = "MatrixBlank"
+    Calibration = C = "Calibration"
+    QC = "QC"
+    CC = "CC"
+    DoubleBlank = DB = "DoubleBlank"
+    Matrix = M = "Matrix"
+    MatrixDup = MD = "MatrixDup"
+    TuneCheck = TC = "TuneCheck"
+    ResponseCheck = RC = "ResponseCheck"
+
+    @classmethod
+    def _missing_(cls, value):
+        if value is None:
+            return SampleType.Sample
+        if isinstance(value, str) and value.upper() in cls._member_map_:
+            return cls[value.upper()]
+        logger.warning(f"Sample Type {value} not exist, default to be Sample")
+        return SampleType.Sample
+
+
 @app.command(name="analysis")
 def analysis_samples(
     samples: Annotated[
-        list[Path],
+        list[str],
         typer.Argument(
-            help="The Mass Hunter analysis file name (.D)",
+            help=f"The Mass Hunter analysis file name (.D), maybe suffix with ':SampleType' to set the sample type (e.g. {'|'.join(i.name for i in SampleType)})",
         ),
     ],
     analysis_method: Annotated[
@@ -275,8 +299,16 @@ def analysis_samples(
     uac_exe = Path(mh) / "UnknownsAnalysisII.Console.exe"
     assert Path(uac_exe).exists()
 
-    (batch_folder,) = {Path(s).absolute().parent for s in samples}
-    analysis_file = batch_folder / "UnknownsResults" / output
+    def get_sample_info(s: str) -> tuple[str, str, dict[str, str]]:
+        folder, name = os.path.split(s)
+        name, *t = name.rsplit(":", maxsplit=1)
+        t = SampleType(t[0]).name if t else SampleType.Sample.name
+        return os.path.abspath(folder), name, {"type": t}
+
+    samples_info = list(map(get_sample_info, samples))
+
+    (batch_folder,) = {f for f, *_ in samples_info}
+    analysis_file = Path(batch_folder) / "UnknownsResults" / output
     if mode == "x":
         assert not analysis_file.exists()
     elif mode == "w":
@@ -323,7 +355,10 @@ def analysis_samples(
 
     commands = _commands(
         output,
-        [((str(Path(s).absolute()),), {"type": "Sample"}) for s in samples],
+        [
+            ((os.path.join(folder, name), *args), kwargs)
+            for folder, name, *args, kwargs in samples_info
+        ],
         str(Path(analysis_method).absolute()),
         report_method=(
             str(Path(report_method).absolute()) if report_method is not None else None
