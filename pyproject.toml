@@ -35,6 +35,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+mcp = [
+  "mcp[cli]>=1.2.0",
+]
 dev = [
   "bandit>=1.7.1,<2.0.0",
   "black>=24.4.0,<25.0.0",

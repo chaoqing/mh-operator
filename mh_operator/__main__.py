@@ -2,31 +2,19 @@
 from typing import Annotated
 
 import os
-from enum import Enum
 from pathlib import Path
 
 import typer
 from rich.console import Console
 
 from mh_operator import version
-from mh_operator.utils.code_generator import function_to_string
+from mh_operator.core.constants import SampleType
 from mh_operator.utils.common import logger
 from mh_operator.utils.ironpython27 import (
     __DEFAULT_MH_BIN_DIR__,
     __DEFAULT_PY275_EXE__,
     CaptureType,
-    run_ironpython_script,
 )
-
-
-class Color(str, Enum):
-    white = "white"
-    red = "red"
-    cyan = "cyan"
-    magenta = "magenta"
-    yellow = "yellow"
-    green = "green"
-
 
 app = typer.Typer(
     name="mh-operator",
@@ -110,8 +98,42 @@ def install_legacy_import_helper(
         install_to(Path(tgt_path) / "mh_operator_legacy.py", legacy_script)
 
 
+@app.command(name="mcp")
+def mcp_server(
+    host: Annotated[
+        str,
+        typer.Option(
+            help="The mcp server listen host",
+        ),
+    ] = "127.0.0.1",
+    port: Annotated[
+        int,
+        typer.Option(
+            help="The mcp server listen port",
+        ),
+    ] = 3000,
+):
+    """Serve the MCP server for mh-operator"""
+    try:
+        from mcp.server.fastmcp import FastMCP
+    except ImportError:
+        logger.fatal("pip install mh-operator[mcp] to enable the mcp service")
+
+    mcp = FastMCP("mh-operator MCP server", host=host, port=port)
+
+    from mh_operator.routines.extract_uaf import extract_mass_hunter_analysis_file
+
+    mcp.tool()(extract_mass_hunter_analysis_file)
+
+    from mh_operator.routines.analysis_samples import analysis_samples
+
+    mcp.tool()(analysis_samples)
+
+    mcp.run(transport="streamable-http")
+
+
 @app.command(name="extract-uaf")
-def extract_mass_hunter_analysis_file(
+def extract_mass_hunter_analysis_file_command(
     uaf: Annotated[
         Path,
         typer.Argument(
@@ -140,84 +162,13 @@ def extract_mass_hunter_analysis_file(
     ] = "-",
 ):
     """Export all data tables from Mass Hunter analysis file to json/xlsx"""
-    legacy_script = Path(__file__).parent / "legacy" / "__init__.py"
+    from mh_operator.routines.extract_uaf import extract_mass_hunter_analysis_file
 
-    uac_exe = Path(mh) / "UnknownsAnalysisII.Console.exe"
-    assert Path(uac_exe).exists()
-    assert Path(uaf).exists()
-
-    @function_to_string(return_type="asis", oneline=True)
-    def _commands(uaf: str, processed: bool):
-        from mh_operator.legacy.common import global_state
-
-        global_state.UADataAccess = UADataAccess
-        from mh_operator.legacy.UnknownsAnalysis import export_analysis
-
-        return export_analysis(uaf).to_json(processed)
-
-    commands = _commands(str(Path(uaf).absolute()), processed)
-    logger.debug(f"use {legacy_script} to exec code '{commands}'")
-
-    returncode, stdout, stderr = run_ironpython_script(
-        legacy_script,
-        uac_exe,
-        python_paths=[str(uac_exe.parent), str(Path(__file__).parent / "..")],
-        extra_envs=[f"MH_CONSOLE_COMMAND_STRING={commands}"],
-        capture_type=CaptureType.SEPERATE,
-    )
-    if returncode != 0:
-        logger.info(f"UAC return with {returncode} and stderr:\n{stderr}")
-
-    logger.debug(f"UAC return stdout:\n {stdout}")
-    import json
-
-    json_data = json.loads(stdout.split("\n", maxsplit=2)[-1])
-    if output == "-":
-        print(json.dumps(json_data, indent=2))
-    elif output.endswith(".json"):
-        with open(output, "w") as fp:
-            json.dump(json_data, fp)
-    elif output.endswith(".sqlite"):
-        import sqlite3
-
-        import pandas as pd
-
-        with sqlite3.connect(output) as conn:
-            for t, v in json_data.items():
-                pd.DataFrame(v).to_sql(t, con=conn, if_exists="replace")
-    elif output.endswith(".xlsx"):
-        import pandas as pd
-
-        with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-            for t, v in json_data.items():
-                pd.DataFrame(v).to_excel(writer, sheet_name=t, index=False)
-
-
-class SampleType(str, Enum):
-    Sample = S = "Sample"
-    Blank = B = "Blank"
-    MatrixBlank = MB = "MatrixBlank"
-    Calibration = C = "Calibration"
-    QC = "QC"
-    CC = "CC"
-    DoubleBlank = DB = "DoubleBlank"
-    Matrix = M = "Matrix"
-    MatrixDup = MD = "MatrixDup"
-    TuneCheck = TC = "TuneCheck"
-    ResponseCheck = RC = "ResponseCheck"
-
-    @classmethod
-    def _missing_(cls, value):
-        if value is None:
-            return SampleType.Sample
-        if isinstance(value, str) and value.upper() in cls._member_map_:
-            return cls[value.upper()]
-        logger.warning(f"Sample Type {value} not exist, default to be Sample")
-        return SampleType.Sample
+    extract_mass_hunter_analysis_file(uaf, mh, processed, output)
 
 
 @app.command(name="analysis")
-def analysis_samples(
+def analysis_samples_command(
     samples: Annotated[
         list[str],
         typer.Argument(
@@ -294,88 +245,19 @@ def analysis_samples(
     ] = __DEFAULT_MH_BIN_DIR__,
 ):
     """Analysis samples with Mass Hunter"""
-    legacy_script = Path(__file__).parent / "legacy" / "__init__.py"
+    from mh_operator.routines.analysis_samples import analysis_samples
 
-    uac_exe = Path(mh) / "UnknownsAnalysisII.Console.exe"
-    assert Path(uac_exe).exists()
-
-    def get_sample_info(s: str) -> tuple[str, str, dict[str, str]]:
-        folder, name = os.path.split(s)
-        name, *t = name.rsplit(":", maxsplit=1)
-        t = SampleType(t[0]).name if t else SampleType.Sample.name
-        return os.path.abspath(folder), name, {"type": t}
-
-    samples_info = list(map(get_sample_info, samples))
-
-    (batch_folder,) = {f for f, *_ in samples_info}
-    analysis_file = Path(batch_folder) / "UnknownsResults" / output
-    if mode == "x":
-        assert not analysis_file.exists()
-    elif mode == "w":
-        logger.info(f"Cleaning existing analysis {analysis_file}")
-        analysis_file.unlink(missing_ok=True)
-
-    @function_to_string(return_type="none", oneline=False)
-    def _commands(
-        uaf_name: str,
-        sample_paths: list[tuple[tuple, dict]],
-        analysis_method: str,
-        report_method: str | None = None,
-        istd_params: dict | None = None,
-    ):
-        from mh_operator.legacy.common import global_state
-
-        global_state.UADataAccess = UADataAccess
-        from mh_operator.legacy.UnknownsAnalysis import ISTD, Sample, analysis_samples
-
-        if istd_params is not None:
-            istd = ISTD(**istd_params)
-        else:
-            istd = None
-
-        analysis_samples(
-            uaf_name,
-            [Sample(*args, **kwargs) for args, kwargs in sample_paths],
-            analysis_method,
-            istd=istd,
-            report_method=report_method,
-        )
-
-    if istd_rt is not None:
-        assert (
-            istd_name is not None and istd_value is not None
-        ), "rt, name, and value must be all set for ISTD to work"
-        istd_params = dict(
-            istd_rt=istd_rt,
-            istd_name=istd_name,
-            istd_value=istd_value,
-        )
-    else:
-        istd_params = None
-
-    commands = _commands(
+    analysis_samples(
+        samples,
+        analysis_method,
         output,
-        [
-            ((os.path.join(folder, name), *args), kwargs)
-            for folder, name, *args, kwargs in samples_info
-        ],
-        str(Path(analysis_method).absolute()),
-        report_method=(
-            str(Path(report_method).absolute()) if report_method is not None else None
-        ),
-        istd_params=istd_params,
+        report_method,
+        istd_rt,
+        istd_name,
+        istd_value,
+        mode,
+        mh,
     )
-    logger.debug(f"use {legacy_script} to exec code '{commands}'")
-
-    returncode, _, _ = run_ironpython_script(
-        legacy_script,
-        uac_exe,
-        python_paths=[str(uac_exe.parent), str(Path(__file__).parent / "..")],
-        extra_envs=[f"MH_CONSOLE_COMMAND_STRING={commands}", f"MH_BIN_DIR={mh}"],
-        capture_type=CaptureType.NONE,
-    )
-    if returncode != 0:
-        logger.info(f"UAC return with {returncode}")
 
 
 if __name__ == "__main__":
