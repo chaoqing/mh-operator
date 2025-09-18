@@ -2505,8 +2505,27 @@ class DataTables(DataTablesBase):
             backup_tables = self.tables
             popped_table = None
             if processed:
+                columns = (
+                    "SampleID",
+                    "StartX",
+                    "RetentionTime",
+                    "EndX",
+                    "CompoundName",
+                    "CASNumber",
+                    "Formula",
+                    "LibraryMatchScore",
+                    "MolecularWeight",
+                    "Area",
+                    "Height",
+                    "EstimatedConcentration",
+                )
+
                 self.tables = {
-                    "ComponentsWithBestPrimaryHit": self.ComponentsWithBestPrimaryHit()
+                    "ComponentsWithBestPrimaryHit": {
+                        k: v
+                        for k, v in self.ComponentsWithBestPrimaryHit().items()
+                        if k in columns
+                    }
                 }
             else:
                 popped_table = self.tables.pop("ComponentsWithBestPrimaryHit", {})

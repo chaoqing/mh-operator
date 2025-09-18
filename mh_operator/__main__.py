@@ -166,9 +166,7 @@ def extract_mass_hunter_analysis_file_command(
 
     from mh_operator.routines.extract_uaf import extract_mass_hunter_analysis_file
 
-    json_data = json.loads(
-        extract_mass_hunter_analysis_file(uaf, mh, processed, output)
-    )
+    json_data = json.loads(extract_mass_hunter_analysis_file(uaf, mh, processed))
     if output == "-":
         print(json.dumps(json_data, indent=2))
     elif output.endswith(".json"):

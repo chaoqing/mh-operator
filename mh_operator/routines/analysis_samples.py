@@ -32,6 +32,15 @@ class ISTDOptions:
         description="The ISTD compound concentration",
     )
 
+    @cached_property
+    def valid(self) -> bool:
+        if any(v is not None for v in self.__dict__.values()):
+            assert not any(
+                v is None for v in istd_params.values()
+            ), "rt, name, and value must be all set for ISTD to work"
+            return True
+        return False
+
 
 @dataclass
 class SampleInfo:
@@ -40,7 +49,7 @@ class SampleInfo:
 
     @cached_property
     def name(self):
-        _, name = os.path.split(s)
+        _, name = os.path.split(self.path)
         return name
 
     @cached_property
@@ -54,10 +63,9 @@ class SampleInfo:
         name, *t = name.rsplit(":", maxsplit=1)
         return SampleInfo(
             path=os.path.join(folder, name),
-            type=SampleType(t[0]).name if t else SampleType.Sample.name,
+            type=SampleType(t[0]) if t else SampleType.Sample,
         )
 
-    @property
     def to_legacy(self) -> tuple[str, str, dict[str, str]]:
         return self.parent, self.name, {"type": self.type.name}
 
@@ -150,15 +158,12 @@ def analysis_samples(
             report_method=_report_method,
         )
 
-    if istd is not None:
+    if istd is not None and istd.valid:
         istd_params = dict(
             istd_rt=istd.rt,
             istd_name=istd.name,
             istd_value=istd.value,
         )
-        assert not any(
-            v is None for v in istd_params.values()
-        ), "rt, name, and value must be all set for ISTD to work"
     else:
         istd_params = None
 
