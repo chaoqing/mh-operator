@@ -2501,9 +2501,9 @@ class DataTables(DataTablesBase):
 
     def to_json(self, processed=False):
         # type: (bool) -> str
+        backup_tables = self.tables
+        popped_table = None
         try:
-            backup_tables = self.tables
-            popped_table = None
             if processed:
                 columns = (
                     "SampleID",
@@ -2519,13 +2519,12 @@ class DataTables(DataTablesBase):
                     "Height",
                     "EstimatedConcentration",
                 )
+                popped_table = self.ComponentsWithBestPrimaryHit()
 
                 self.tables = {
-                    "ComponentsWithBestPrimaryHit": {
-                        k: v
-                        for k, v in self.ComponentsWithBestPrimaryHit().items()
-                        if k in columns
-                    }
+                    "ComponentsWithBestPrimaryHit": dict(
+                        (k, popped_table[k]) for k in columns if k in popped_table
+                    )
                 }
             else:
                 popped_table = self.tables.pop("ComponentsWithBestPrimaryHit", {})
