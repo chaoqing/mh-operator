@@ -29,6 +29,7 @@ classifiers = [
 ]
 
 dependencies = [
+  "pydantic>=2.11",
   "rich>=10.14.0,<11.0.0",
   "six>=1.17.0",
   "typer>=0.12.0",

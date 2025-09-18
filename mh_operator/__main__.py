@@ -162,9 +162,32 @@ def extract_mass_hunter_analysis_file_command(
     ] = "-",
 ):
     """Export all data tables from Mass Hunter analysis file to json/xlsx"""
+    import json
+
     from mh_operator.routines.extract_uaf import extract_mass_hunter_analysis_file
 
-    extract_mass_hunter_analysis_file(uaf, mh, processed, output)
+    json_data = json.loads(
+        extract_mass_hunter_analysis_file(uaf, mh, processed, output)
+    )
+    if output == "-":
+        print(json.dumps(json_data, indent=2))
+    elif output.endswith(".json"):
+        with open(output, "w") as fp:
+            json.dump(json_data, fp)
+    elif output.endswith(".sqlite"):
+        import sqlite3
+
+        import pandas as pd
+
+        with sqlite3.connect(output) as conn:
+            for t, v in json_data.items():
+                pd.DataFrame(v).to_sql(t, con=conn, if_exists="replace")
+    elif output.endswith(".xlsx"):
+        import pandas as pd
+
+        with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+            for t, v in json_data.items():
+                pd.DataFrame(v).to_excel(writer, sheet_name=t, index=False)
 
 
 @app.command(name="analysis")
@@ -245,17 +268,26 @@ def analysis_samples_command(
     ] = __DEFAULT_MH_BIN_DIR__,
 ):
     """Analysis samples with Mass Hunter"""
-    from mh_operator.routines.analysis_samples import analysis_samples
+    from mh_operator.routines.analysis_samples import (
+        FileOpenMode,
+        ISTDOptions,
+        SampleInfo,
+        analysis_samples,
+    )
 
     analysis_samples(
-        samples,
+        [SampleInfo.from_cli(s) for s in samples],
         analysis_method,
         output,
         report_method,
-        istd_rt,
-        istd_name,
-        istd_value,
-        mode,
+        ISTDOptions(
+            rt=istd_rt,
+            name=istd_name,
+            value=istd_value,
+        ),
+        {"x": FileOpenMode.CREATE, "w": FileOpenMode.WRITE, "a": FileOpenMode.APPEND}[
+            mode
+        ],
         mh,
     )
 

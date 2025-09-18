@@ -5,6 +5,8 @@ import json
 import os
 from pathlib import Path
 
+from pydantic import Field
+
 from mh_operator.utils.code_generator import function_to_string
 from mh_operator.utils.common import logger
 from mh_operator.utils.ironpython27 import (
@@ -16,11 +18,30 @@ from mh_operator.utils.ironpython27 import (
 
 
 def extract_mass_hunter_analysis_file(
-    uaf: Path,
-    mh_bin_path: Path,
-    processed: bool,
-    output: str,
-):
+    uaf: Annotated[
+        Path,
+        Field(
+            description="The Mass Hunter analysis file (.uaf)",
+        ),
+    ],
+    mh_bin_path: Annotated[
+        Path,
+        Field(
+            description="The bin path of the installed Mass Hunter",
+        ),
+    ] = __DEFAULT_MH_BIN_DIR__,
+    processed: Annotated[
+        bool,
+        Field(
+            description="Do processing on the tables to give the final compounds list table",
+        ),
+    ] = True,
+) -> Annotated[
+    str,
+    Field(
+        description="The dumped json string of the data contained inside the uaf file"
+    ),
+]:
     """Export all data tables from Mass Hunter analysis file to json/xlsx"""
     legacy_script = Path(__file__).parent.parent / "legacy" / "__init__.py"
 
@@ -29,47 +50,26 @@ def extract_mass_hunter_analysis_file(
     assert Path(uaf).exists()
 
     @function_to_string(return_type="asis", oneline=True)
-    def _commands(uaf: str, processed: bool):
+    def _commands(_uaf: str, _processed: bool):
         from mh_operator.legacy.common import global_state
 
         global_state.UADataAccess = UADataAccess
         from mh_operator.legacy.UnknownsAnalysis import export_analysis
 
-        return export_analysis(uaf).to_json(processed)
+        return export_analysis(_uaf).to_json(_processed)
 
     commands = _commands(str(Path(uaf).absolute()), processed)
     logger.debug(f"use {legacy_script} to exec code '{commands}'")
 
-    returncode, stdout, stderr = run_ironpython_script(
+    return_code, stdout, stderr = run_ironpython_script(
         legacy_script,
         uac_exe,
         python_paths=[str(uac_exe.parent), str(Path(__file__).parent.parent / "..")],
         extra_envs=[f"MH_CONSOLE_COMMAND_STRING={commands}"],
         capture_type=CaptureType.SEPERATE,
     )
-    if returncode != 0:
-        logger.info(f"UAC return with {returncode} and stderr:\n{stderr}")
+    if return_code != 0:
+        logger.info(f"UAC return with {return_code} and stderr:\n{stderr}")
 
     logger.debug(f"UAC return stdout:\n {stdout}")
-    import json
-
-    json_data = json.loads(stdout.split("\n", maxsplit=2)[-1])
-    if output == "-":
-        print(json.dumps(json_data, indent=2))
-    elif output.endswith(".json"):
-        with open(output, "w") as fp:
-            json.dump(json_data, fp)
-    elif output.endswith(".sqlite"):
-        import sqlite3
-
-        import pandas as pd
-
-        with sqlite3.connect(output) as conn:
-            for t, v in json_data.items():
-                pd.DataFrame(v).to_sql(t, con=conn, if_exists="replace")
-    elif output.endswith(".xlsx"):
-        import pandas as pd
-
-        with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-            for t, v in json_data.items():
-                pd.DataFrame(v).to_excel(writer, sheet_name=t, index=False)
+    return stdout.split("\n", maxsplit=2)[-1]

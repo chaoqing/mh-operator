@@ -2501,10 +2501,17 @@ class DataTables(DataTablesBase):
 
     def to_json(self, processed=False):
         # type: (bool) -> str
-        if processed:
-            self.tables["ComponentsWithBestPrimaryHit"] = (
-                self.ComponentsWithBestPrimaryHit()
-            )
-        else:
-            self.tables.pop("ComponentsWithBestPrimaryHit", {})
-        return super(DataTables, self).to_json()
+        try:
+            backup_tables = self.tables
+            popped_table = None
+            if processed:
+                self.tables = {
+                    "ComponentsWithBestPrimaryHit": self.ComponentsWithBestPrimaryHit()
+                }
+            else:
+                popped_table = self.tables.pop("ComponentsWithBestPrimaryHit", {})
+            return super(DataTables, self).to_json()
+        finally:
+            self.tables = backup_tables
+            if not popped_table:
+                self.tables["ComponentsWithBestPrimaryHit"] = popped_table

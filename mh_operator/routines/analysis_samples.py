@@ -1,6 +1,14 @@
 # type: ignore[attr-defined]
+from typing import Annotated
+
+import dataclasses
 import os
+from dataclasses import dataclass
+from enum import Enum
+from functools import cached_property
 from pathlib import Path
+
+from pydantic import Field
 
 from mh_operator.core.constants import SampleType
 from mh_operator.utils.code_generator import function_to_string
@@ -12,16 +20,93 @@ from mh_operator.utils.ironpython27 import (
 )
 
 
+@dataclass
+class ISTDOptions:
+    rt: float = Field(
+        description="The ISTD compound retention time (min.)",
+    )
+    name: str = Field(
+        description="The ISTD compound name",
+    )
+    value: float = Field(
+        description="The ISTD compound concentration",
+    )
+
+
+@dataclass
+class SampleInfo:
+    path: Path = Field(description="The path of the Mass Hunter test .D")
+    type: SampleType = Field(description="The sample type of the test")
+
+    @cached_property
+    def name(self):
+        _, name = os.path.split(s)
+        return name
+
+    @cached_property
+    def parent(self):
+        folder, _ = os.path.split(os.path.abspath(self.path))
+        return folder
+
+    @staticmethod
+    def from_cli(s: str) -> "SampleInfo":
+        folder, name = os.path.split(s)
+        name, *t = name.rsplit(":", maxsplit=1)
+        return SampleInfo(
+            path=os.path.join(folder, name),
+            type=SampleType(t[0]).name if t else SampleType.Sample.name,
+        )
+
+    @property
+    def to_legacy(self) -> tuple[str, str, dict[str, str]]:
+        return self.parent, self.name, {"type": self.type.name}
+
+
+class FileOpenMode(Enum):
+    """The mode while open the analysis file:
+    - x/c/create: create new uaf file, raise error when uaf already exist;
+    - w/write: create new uaf file, old uaf removed at first;
+    - a/append: append to old uaf file, create new one if not exist;
+    """
+
+    CREATE = "create"
+    WRITE = "write"
+    APPEND = "append"
+
+
 def analysis_samples(
-    samples: list[str],
-    analysis_method: Path,
-    output: str,
-    report_method: Path | None,
-    istd_rt: float | None,
-    istd_name: str | None,
-    istd_value: float | None,
-    mode: str,
-    mh_bin_path: Path,
+    samples: Annotated[
+        list[SampleInfo],
+        Field(
+            description=f"The Mass Hunter tests (.D) to analysis",
+        ),
+    ],
+    analysis_method: Annotated[
+        Path,
+        Field(
+            description="The Mass Hunter analysis method path (.m)",
+        ),
+    ] = "Process.m",
+    output: Annotated[
+        str,
+        Field(
+            description="The Mass Hunter analysis file name (.uaf)",
+        ),
+    ] = "batch.uaf",
+    report_method: Annotated[
+        Path,
+        Field(
+            description="The Mass Hunter report method path (.m)",
+        ),
+    ] = None,
+    istd: ISTDOptions = None,
+    mode: FileOpenMode = FileOpenMode.WRITE,
+    mh_bin_path: Annotated[
+        Path,
+        Field(
+            description="The bin path of the installed Mass Hunter",
+        ),
+    ] = __DEFAULT_MH_BIN_DIR__,
 ):
     """Analysis samples with Mass Hunter"""
     legacy_script = Path(__file__).parent.parent / "legacy" / "__init__.py"
@@ -29,57 +114,51 @@ def analysis_samples(
     uac_exe = Path(mh_bin_path) / "UnknownsAnalysisII.Console.exe"
     assert Path(uac_exe).exists()
 
-    def get_sample_info(s: str) -> tuple[str, str, dict[str, str]]:
-        folder, name = os.path.split(s)
-        name, *t = name.rsplit(":", maxsplit=1)
-        t = SampleType(t[0]).name if t else SampleType.Sample.name
-        return os.path.abspath(folder), name, {"type": t}
-
-    samples_info = list(map(get_sample_info, samples))
-
+    samples_info = [s.to_legacy() for s in samples]
     (batch_folder,) = {f for f, *_ in samples_info}
+
     analysis_file = Path(batch_folder) / "UnknownsResults" / output
-    if mode == "x":
+    if mode == FileOpenMode.CREATE:
         assert not analysis_file.exists()
-    elif mode == "w":
+    elif mode == FileOpenMode.WRITE:
         logger.info(f"Cleaning existing analysis {analysis_file}")
         analysis_file.unlink(missing_ok=True)
 
     @function_to_string(return_type="none", oneline=False)
     def _commands(
-        uaf_name: str,
-        sample_paths: list[tuple[tuple, dict]],
-        analysis_method: str,
-        report_method: str | None = None,
-        istd_params: dict | None = None,
-    ):
+        _uaf_name: str,
+        _sample_paths: list[tuple[tuple, dict]],
+        _analysis_method: str,
+        _report_method: str | None = None,
+        _istd_params: dict | None = None,
+    ) -> str:
         from mh_operator.legacy.common import global_state
 
         global_state.UADataAccess = UADataAccess
         from mh_operator.legacy.UnknownsAnalysis import ISTD, Sample, analysis_samples
 
-        if istd_params is not None:
-            istd = ISTD(**istd_params)
+        if _istd_params is not None:
+            _istd = ISTD(**_istd_params)
         else:
-            istd = None
+            _istd = None
 
         analysis_samples(
-            uaf_name,
-            [Sample(*args, **kwargs) for args, kwargs in sample_paths],
-            analysis_method,
-            istd=istd,
-            report_method=report_method,
+            _uaf_name,
+            [Sample(*args, **kwargs) for args, kwargs in _sample_paths],
+            _analysis_method,
+            istd=_istd,
+            report_method=_report_method,
         )
 
-    if istd_rt is not None:
-        assert (
-            istd_name is not None and istd_value is not None
-        ), "rt, name, and value must be all set for ISTD to work"
+    if istd is not None:
         istd_params = dict(
-            istd_rt=istd_rt,
-            istd_name=istd_name,
-            istd_value=istd_value,
+            istd_rt=istd.rt,
+            istd_name=istd.name,
+            istd_value=istd.value,
         )
+        assert not any(
+            v is None for v in istd_params.values()
+        ), "rt, name, and value must be all set for ISTD to work"
     else:
         istd_params = None
 
@@ -90,14 +169,14 @@ def analysis_samples(
             for folder, name, *args, kwargs in samples_info
         ],
         str(Path(analysis_method).absolute()),
-        report_method=(
+        _report_method=(
             str(Path(report_method).absolute()) if report_method is not None else None
         ),
-        istd_params=istd_params,
+        _istd_params=istd_params,
     )
     logger.debug(f"use {legacy_script} to exec code '{commands}'")
 
-    returncode, _, _ = run_ironpython_script(
+    return_code, _, _ = run_ironpython_script(
         legacy_script,
         uac_exe,
         python_paths=[str(uac_exe.parent), str(Path(__file__).parent.parent / "..")],
@@ -107,5 +186,5 @@ def analysis_samples(
         ],
         capture_type=CaptureType.NONE,
     )
-    if returncode != 0:
-        logger.info(f"UAC return with {returncode}")
+    if return_code != 0:
+        logger.info(f"UAC return with {return_code}")
