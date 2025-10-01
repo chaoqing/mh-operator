@@ -1,9 +1,10 @@
 # type: ignore[attr-defined]
-from typing import Annotated
+from typing import Annotated, Optional
 
 import dataclasses
 import os
-from dataclasses import dataclass
+from ast import literal_eval
+from pydantic.dataclasses import dataclass
 from enum import Enum
 from functools import cached_property
 from pathlib import Path
@@ -45,7 +46,9 @@ class ISTDOptions:
 @dataclass
 class SampleInfo:
     path: Path = Field(description="The path of the Mass Hunter test .D")
-    type: SampleType = Field(description="The sample type of the test")
+    type: SampleType = Field(
+        default=SampleType.Sample, description="The sample type of the test"
+    )
 
     @cached_property
     def name(self):
@@ -102,12 +105,12 @@ def analysis_samples(
         ),
     ] = "batch.uaf",
     report_method: Annotated[
-        Path,
+        Optional[Path],
         Field(
             description="The Mass Hunter report method path (.m)",
         ),
     ] = None,
-    istd: ISTDOptions = None,
+    istd: Optional[ISTDOptions] = None,
     mode: FileOpenMode = FileOpenMode.WRITE,
     mh_bin_path: Annotated[
         Path,
@@ -115,7 +118,9 @@ def analysis_samples(
             description="The bin path of the installed Mass Hunter",
         ),
     ] = __DEFAULT_MH_BIN_DIR__,
-):
+) -> Annotated[
+    str, Field(description="The exported json file path of the generated UAF file")
+]:
     """Analysis samples with Mass Hunter"""
     legacy_script = Path(__file__).parent.parent / "legacy" / "__init__.py"
 
@@ -132,7 +137,7 @@ def analysis_samples(
         logger.info(f"Cleaning existing analysis {analysis_file}")
         analysis_file.unlink(missing_ok=True)
 
-    @function_to_string(return_type="none", oneline=False)
+    @function_to_string(return_type="repr", oneline=False)
     def _commands(
         _uaf_name: str,
         _sample_paths: list[tuple[tuple, dict]],
@@ -150,7 +155,7 @@ def analysis_samples(
         else:
             _istd = None
 
-        analysis_samples(
+        return analysis_samples(
             _uaf_name,
             [Sample(*args, **kwargs) for args, kwargs in _sample_paths],
             _analysis_method,
@@ -181,7 +186,7 @@ def analysis_samples(
     )
     logger.debug(f"use {legacy_script} to exec code '{commands}'")
 
-    return_code, _, _ = run_ironpython_script(
+    return_code, stdout, _ = run_ironpython_script(
         legacy_script,
         uac_exe,
         python_paths=[str(uac_exe.parent), str(Path(__file__).parent.parent / "..")],
@@ -189,7 +194,14 @@ def analysis_samples(
             f"MH_CONSOLE_COMMAND_STRING={commands}",
             f"MH_BIN_DIR={mh_bin_path}",
         ],
-        capture_type=CaptureType.NONE,
+        capture_type=CaptureType.STDOUT,
     )
     if return_code != 0:
         logger.info(f"UAC return with {return_code}")
+
+    logger.debug(f"UAC return stdout:\n {stdout}")
+    uaf_json_path = literal_eval(stdout.split("\n")[-1])
+    if Path(uaf_json_path).exists():
+        return uaf_json_path
+    else:
+        raise RuntimeError(f"Failed to exec code '{commands}'")

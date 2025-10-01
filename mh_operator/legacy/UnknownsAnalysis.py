@@ -243,7 +243,7 @@ def export_analysis(analysis_file=None):
 def analysis_samples(
     analysis_name, samples, analysis_method, istd=None, report_method=None
 ):
-    # type: (str, list, str, ISTD, str) -> dict
+    # type: (str, list, str, ISTD, str) -> str
     (batch_folder,) = set(os.path.split(s.path)[0] for s in samples)
     analysis_file = os.path.join(batch_folder, "UnknownsResults", analysis_name)
     append_mode = os.path.exists(analysis_file)
@@ -355,3 +355,5 @@ def analysis_samples(
                 report_path, report_method
             )
         )
+
+    return analysis_file + ".json"

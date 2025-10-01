@@ -1,5 +1,5 @@
 # type: ignore[attr-defined]
-from typing import Annotated
+from typing import Annotated, Optional
 
 import os
 from pathlib import Path
@@ -118,6 +118,7 @@ def mcp_server(
         from mcp.server.fastmcp import FastMCP
     except ImportError:
         logger.fatal("pip install mh-operator[mcp] to enable the mcp service")
+        raise typer.Exit(1)
 
     mcp = FastMCP("mh-operator MCP server", host=host, port=port)
 

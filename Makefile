@@ -31,7 +31,7 @@ install: venv compile-reqs
 	@echo "Syncing dependencies from requirements.txt..."
 	uv pip sync requirements.txt
 	@echo "Installing local package in editable mode..."
-	uv pip install -e .
+	uv pip install -e .[mcp]
 	@echo "Attempting to install mypy types..."
 	-uv run -- mypy --install-types --non-interactive ./
 

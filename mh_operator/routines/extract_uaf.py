@@ -1,5 +1,5 @@
 # type: ignore[attr-defined]
-from typing import Annotated
+from typing import Annotated, Optional
 
 import json
 import os
