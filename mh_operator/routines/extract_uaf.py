@@ -69,7 +69,7 @@ def extract_mass_hunter_analysis_file(
         capture_type=CaptureType.SEPERATE,
     )
     if return_code != 0:
-        logger.info(f"UAC return with {return_code} and stderr:\n{stderr}")
+        logger.warning(f"UAC return with {return_code} and stderr:\n{stderr}")
 
     logger.debug(f"UAC return stdout:\n {stdout}")
     return stdout.split("\n", maxsplit=2)[-1]

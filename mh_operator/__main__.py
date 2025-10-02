@@ -1,6 +1,7 @@
 # type: ignore[attr-defined]
 from typing import Annotated, Optional
 
+import json
 import os
 from pathlib import Path
 
@@ -129,6 +130,17 @@ def mcp_server(
     from mh_operator.routines.analysis_samples import analysis_samples
 
     mcp.tool()(analysis_samples)
+
+    for tool in mcp._tool_manager.list_tools():
+        logger.info(
+            f"MCP tool `{tool.name}`\n"
+            f"- Description: {tool.description}\n\n"
+            f"- Input Schema: >|\n"
+            f"{json.dumps(tool.parameters, indent=2)}\n\n"
+            f"- Output Schema: >|\n"
+            f"{json.dumps(tool.output_schema, indent=2)}\n\n"
+            f"{'-'*40}"
+        )
 
     mcp.run(transport="streamable-http")
 
@@ -279,10 +291,14 @@ def analysis_samples_command(
         analysis_method,
         output,
         report_method,
-        ISTDOptions(
-            rt=istd_rt,
-            name=istd_name,
-            value=istd_value,
+        (
+            None
+            if all(v is None for v in [istd_rt, istd_name, istd_value])
+            else ISTDOptions(
+                rt=istd_rt,
+                name=istd_name,
+                value=istd_value,
+            )
         ),
         {"x": FileOpenMode.CREATE, "w": FileOpenMode.WRITE, "a": FileOpenMode.APPEND}[
             mode

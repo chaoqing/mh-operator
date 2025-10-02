@@ -1,15 +1,14 @@
 # type: ignore[attr-defined]
 from typing import Annotated, Optional
 
-import dataclasses
 import os
 from ast import literal_eval
-from pydantic.dataclasses import dataclass
 from enum import Enum
 from functools import cached_property
 from pathlib import Path
 
 from pydantic import Field
+from pydantic.dataclasses import dataclass
 
 from mh_operator.core.constants import SampleType
 from mh_operator.utils.code_generator import function_to_string
@@ -197,11 +196,12 @@ def analysis_samples(
         capture_type=CaptureType.STDOUT,
     )
     if return_code != 0:
-        logger.info(f"UAC return with {return_code}")
+        logger.warning(f"UAC return with {return_code}")
 
-    logger.debug(f"UAC return stdout:\n {stdout}")
-    uaf_json_path = literal_eval(stdout.split("\n")[-1])
-    if Path(uaf_json_path).exists():
-        return uaf_json_path
-    else:
-        raise RuntimeError(f"Failed to exec code '{commands}'")
+    try:
+        *_, uaf_json_path = stdout.strip().rsplit("\n", maxsplit=1)
+        uaf_json_path = literal_eval(uaf_json_path)
+        assert Path(uaf_json_path).exists()
+    except (SyntaxError, AssertionError) as e:
+        logger.info(f"UAC return stdout:\n {stdout}")
+        raise RuntimeError(f"Failed to exec code '{commands}': {e}")
