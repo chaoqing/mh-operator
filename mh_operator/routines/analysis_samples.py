@@ -72,7 +72,7 @@ class SampleInfo:
         return self.parent, self.name, {"type": self.type.name}
 
 
-class FileOpenMode(Enum):
+class FileOpenMode(str, Enum):
     """The mode while open the analysis file:
     - x/c/create: create new uaf file, raise error when uaf already exist;
     - w/write: create new uaf file, old uaf removed at first;
@@ -96,7 +96,7 @@ def analysis_samples(
         Field(
             description="The Mass Hunter analysis method path (.m)",
         ),
-    ] = "Process.m",
+    ] = Path("Process.m"),
     output: Annotated[
         str,
         Field(
@@ -109,8 +109,12 @@ def analysis_samples(
             description="The Mass Hunter report method path (.m)",
         ),
     ] = None,
-    istd: Optional[ISTDOptions] = None,
-    mode: FileOpenMode = FileOpenMode.WRITE,
+    istd: Annotated[
+        Optional[ISTDOptions], Field(description="The ISTD options")
+    ] = None,
+    mode: Annotated[
+        FileOpenMode, Field(description="The mode while open the analysis file")
+    ] = FileOpenMode.WRITE,
     mh_bin_path: Annotated[
         Path,
         Field(
@@ -118,7 +122,7 @@ def analysis_samples(
         ),
     ] = __DEFAULT_MH_BIN_DIR__,
 ) -> Annotated[
-    str, Field(description="The exported json file path of the generated UAF file")
+    Path, Field(description="The exported json file path of the generated UAF file")
 ]:
     """Analysis samples with Mass Hunter"""
     legacy_script = Path(__file__).parent.parent / "legacy" / "__init__.py"
@@ -200,8 +204,9 @@ def analysis_samples(
 
     try:
         *_, uaf_json_path = stdout.strip().rsplit("\n", maxsplit=1)
-        uaf_json_path = literal_eval(uaf_json_path)
-        assert Path(uaf_json_path).exists()
+        uaf_json_path = Path(literal_eval(uaf_json_path))
+        assert uaf_json_path.exists()
+        return uaf_json_path
     except (SyntaxError, AssertionError) as e:
         logger.info(f"UAC return stdout:\n {stdout}")
         raise RuntimeError(f"Failed to exec code '{commands}': {e}")

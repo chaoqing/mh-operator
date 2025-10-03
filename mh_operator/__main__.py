@@ -116,33 +116,14 @@ def mcp_server(
 ):
     """Serve the MCP server for mh-operator"""
     try:
-        from mcp.server.fastmcp import FastMCP
+        from mh_operator.core.mcp_server import create_mcp_server
+
+        mcp = create_mcp_server(host=host, port=port)
+        mcp.run(transport="streamable-http")
+
     except ImportError:
         logger.fatal("pip install mh-operator[mcp] to enable the mcp service")
         raise typer.Exit(1)
-
-    mcp = FastMCP("mh-operator MCP server", host=host, port=port)
-
-    from mh_operator.routines.extract_uaf import extract_mass_hunter_analysis_file
-
-    mcp.tool()(extract_mass_hunter_analysis_file)
-
-    from mh_operator.routines.analysis_samples import analysis_samples
-
-    mcp.tool()(analysis_samples)
-
-    for tool in mcp._tool_manager.list_tools():
-        logger.info(
-            f"MCP tool `{tool.name}`\n"
-            f"- Description: {tool.description}\n\n"
-            f"- Input Schema: >|\n"
-            f"{json.dumps(tool.parameters, indent=2)}\n\n"
-            f"- Output Schema: >|\n"
-            f"{json.dumps(tool.output_schema, indent=2)}\n\n"
-            f"{'-'*40}"
-        )
-
-    mcp.run(transport="streamable-http")
 
 
 @app.command(name="extract-uaf")
