@@ -1,5 +1,5 @@
 # type: ignore[attr-defined]
-from typing import Annotated, Optional
+from typing import Annotated, List, Optional
 
 import os
 from ast import literal_eval
@@ -86,7 +86,7 @@ class FileOpenMode(str, Enum):
 
 def analysis_samples(
     samples: Annotated[
-        list[SampleInfo],
+        List[SampleInfo],
         Field(
             description=f"The Mass Hunter tests (.D) to analysis",
         ),

@@ -2385,6 +2385,22 @@ class ExactMassDataTable(DataTableBase[ExactMassRow]):
     pass
 
 
+ProcessedColumns = (
+    ComponentRow.SampleID,
+    ComponentRow.StartX,
+    ComponentRow.RetentionTime,
+    ComponentRow.EndX,
+    HitRow.CompoundName,
+    HitRow.CASNumber,
+    HitRow.Formula,
+    HitRow.LibraryMatchScore,
+    HitRow.MolecularWeight,
+    ComponentRow.Area,
+    ComponentRow.Height,
+    HitRow.EstimatedConcentration,
+)
+
+
 class DataTables(DataTablesBase):
     @table_property(BatchDataTable)
     def Batch(self):
@@ -2505,20 +2521,7 @@ class DataTables(DataTablesBase):
         popped_table = None
         try:
             if processed:
-                columns = (
-                    "SampleID",
-                    "StartX",
-                    "RetentionTime",
-                    "EndX",
-                    "CompoundName",
-                    "CASNumber",
-                    "Formula",
-                    "LibraryMatchScore",
-                    "MolecularWeight",
-                    "Area",
-                    "Height",
-                    "EstimatedConcentration",
-                )
+                columns = [c.fget.__name__ for c in ProcessedColumns]
                 popped_table = self.ComponentsWithBestPrimaryHit()
 
                 self.tables = {

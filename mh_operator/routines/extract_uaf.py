@@ -72,4 +72,4 @@ def extract_mass_hunter_analysis_file(
         logger.warning(f"UAC return with {return_code} and stderr:\n{stderr}")
 
     logger.debug(f"UAC return stdout:\n {stdout}")
-    return stdout.split("\n", maxsplit=2)[-1]
+    return stdout.rsplit("\n", maxsplit=1)[-1]
