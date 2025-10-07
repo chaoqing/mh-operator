@@ -58,7 +58,7 @@ def create_mcp_server(**kwargs) -> FastMCP:
             output=settings.output,
             report_method=settings.report_method,
             mode=settings.mode,
-            mh_bin_path=__DEFAULT_MH_BIN_DIR__,
+            mh_bin_path=settings.mh_bin_path,
             istd=settings.istd,
         )
         return str(res)

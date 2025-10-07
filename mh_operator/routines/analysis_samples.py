@@ -36,7 +36,7 @@ class ISTDOptions:
     def valid(self) -> bool:
         if any(v is not None for v in self.__dict__.values()):
             assert not any(
-                v is None for v in istd_params.values()
+                v is None for v in self.__dict__.values()
             ), "rt, name, and value must be all set for ISTD to work"
             return True
         return False
