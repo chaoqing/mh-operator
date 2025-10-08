@@ -2,6 +2,7 @@ from typing import Annotated, Optional
 
 import asyncio
 import json
+import uuid
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
@@ -17,8 +18,73 @@ from ..utils.common import logger
 from .config import settings
 
 
+class InMemoryFS:
+    def __init__(self):
+        self._data = {}
+
+    def write(self, path: str, data: bytes):
+        self._data[path] = data
+
+    def read(self, path: str) -> Optional[bytes]:
+        return self._data.get(path)
+
+    @staticmethod
+    def generate_uuid_path() -> str:
+        return str(uuid.uuid4())
+
+
 def create_mcp_server(**kwargs) -> FastMCP:
     mcp = FastMCP("mh-operator MCP server", **kwargs)
+    in_memory_fs = InMemoryFS()
+
+    @mcp.resource("{drive}://{data_path}")
+    def save_resource(
+        data: Annotated[
+            bytes,
+            Field(
+                description="The binary data to save.",
+            ),
+        ],
+        data_path: Annotated[
+            Optional[str],
+            Field(
+                description="Optional: The desired path to save the data. If not provided, a UUID will be generated.",
+            ),
+        ] = None,
+        drive: Annotated[
+            str, Field(description="The location of the uploaded data to be saved")
+        ] = "inmemory",
+    ) -> Annotated[
+        str,
+        Field(
+            description="The path (UUID or user-provided) where the data was saved.",
+        ),
+    ]:
+        """Save binary data to the in-memory filesystem."""
+        if drive != "inmemory":
+            raise NotImplementedError
+
+        if data_path is None:
+            data_path = in_memory_fs.generate_uuid_path()
+        in_memory_fs.write(data_path, data)
+        return f"inmemory:{data_path}"
+
+    @mcp.resource("{drive}://{data_path}")
+    def read_resource(
+        data_path: Annotated[
+            str,
+            Field(
+                description="The path (UUID or user-provided) of the resource to read.",
+            ),
+        ],
+    ) -> Annotated[
+        Optional[bytes],
+        Field(
+            description="The binary data of the resource, or None if not found.",
+        ),
+    ]:
+        """Read binary data from the in-memory filesystem."""
+        return in_memory_fs.read(data_path)
 
     @mcp.tool()
     def read_analysis_file(

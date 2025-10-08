@@ -89,3 +89,29 @@ def test_simplify_pure_function_ast():
         print(reassign(5))
     except Exception as e:  # Catching the broad error from the decorator for testing
         print(f"Caught expected error: {e}")
+
+
+def test_columns():
+    from mh_operator.legacy.UnknownsAnalysisDataSet import ProcessedColumns
+
+    ProcessedColumns2 = (
+        ("SampleID", int, "The sample ID in this uaf file"),
+        ("StartX", float, "The start retention time of this compound"),
+        ("RetentionTime", float, "The retention time of this compound"),
+        ("EndX", float, "The end retention time of this compound"),
+        ("CompoundName", str, "The compound name"),
+        ("CASNumber", str, "The compound CAS number"),
+        ("Formula", str, "The compound formula"),
+        (
+            "LibraryMatchScore",
+            float,
+            "The compound library match score, range 0 to 100",
+        ),
+        ("MolecularWeight", float, "The compound molecular weight"),
+        ("Area", float, "The compound area"),
+        ("Height", float, "The compound height"),
+        ("EstimatedConcentration", float, "The compound estimated concentration"),
+    )
+
+    for c, c2 in zip(ProcessedColumns, ProcessedColumns2):
+        assert c.fget.__name__ == c2[0]
