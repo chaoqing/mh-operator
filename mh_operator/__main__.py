@@ -113,13 +113,26 @@ def mcp_server(
             help="The mcp server listen port",
         ),
     ] = 3000,
+    ftp_port: Annotated[
+        int,
+        typer.Option(
+            help="The ftp server listen port",
+        ),
+    ] = 3021,
 ):
     """Serve the MCP server for mh-operator"""
     try:
-        from mh_operator.core.mcp_server import create_mcp_server
+        import asyncio
 
-        mcp = create_mcp_server(host=host, port=port)
-        mcp.run(transport="streamable-http")
+        from mh_operator.core.config import settings
+        from mh_operator.core.mcp_server import launch_combined_server
+
+        if settings.ftp_uri is None:
+            settings.ftp_uri = f"ftp://{host}:{ftp_port}"
+
+        asyncio.run(
+            launch_combined_server(host=host, http_port=port, ftp_port=ftp_port)
+        )
 
     except ImportError:
         logger.fatal("pip install mh-operator[mcp] to enable the mcp service")

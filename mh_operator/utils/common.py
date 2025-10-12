@@ -1,7 +1,12 @@
+import abc
 import logging
 import sys
 
 from ..legacy.common import SingletonMeta
+
+
+class SingletonABCMeta(SingletonMeta, abc.ABCMeta):
+    pass
 
 
 class PackageLogger(metaclass=SingletonMeta):

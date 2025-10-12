@@ -1,9 +1,12 @@
+aioftp==0.27.2
 annotated-types==0.7.0
 anyio==4.10.0
+appdirs==1.4.4
 astroid==2.15.8
 attrs==25.3.0
 bandit==1.8.6
 black==24.10.0
+cachetools==6.2.0
 certifi==2025.8.3
 cfgv==3.4.0
 charset-normalizer==3.4.3
@@ -18,6 +21,7 @@ distlib==0.4.0
 dparse==0.6.4
 exceptiongroup==1.3.0
 filelock==3.19.1
+fs==2.4.16
 h11==0.16.0
 httpcore==1.0.9
 httpx==0.28.1
@@ -67,6 +71,7 @@ safety==1.10.3
 setuptools==80.9.0
 shellingham==1.5.4
 six==1.17.0
+smart-open==7.3.1
 sniffio==1.3.1
 snowballstemmer==3.0.1
 sse-starlette==3.0.2

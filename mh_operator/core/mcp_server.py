@@ -1,77 +1,106 @@
-from typing import Annotated, Optional
+from typing import Annotated, Dict, List, Optional
 
 import asyncio
 import json
-import uuid
+from functools import cache
+from io import BytesIO
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from urllib.parse import urlparse
 
+import aioftp
+import fs.opener
+from fs import open_fs
+from fs.copy import copy_fs
+from fs.tarfs import TarFS
+from fs.zipfs import ZipFS
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
+from starlette.applications import Starlette
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response, StreamingResponse
+from starlette.routing import Mount, Route
 
-from ..routines.analysis_samples import (
-    __DEFAULT_MH_BIN_DIR__,
-    SampleInfo,
-    analysis_samples,
-)
+from ..routines.analysis_samples import SampleInfo, analysis_samples
 from ..routines.extract_uaf import extract_mass_hunter_analysis_file
 from ..utils.common import logger
+from ..utils.in_memory_storage import InMemoryFTP, StorageBackend
 from .config import settings
 
+try:
+    from fs_s3fs.opener import S3FSOpener
 
-class InMemoryFS:
-    def __init__(self):
-        self._data = {}
+    fs.opener.registry.install(S3FSOpener)
+except ImportError:
+    logger.warning(
+        "S3FS not found, run`pip install fs-s3fs` to enable 's3://' protocol"
+    )
+try:
+    from webdavfs.opener import WebDAVOpener
 
-    def write(self, path: str, data: bytes):
-        self._data[path] = data
-
-    def read(self, path: str) -> Optional[bytes]:
-        return self._data.get(path)
-
-    @staticmethod
-    def generate_uuid_path() -> str:
-        return str(uuid.uuid4())
+    fs.opener.registry.install(WebDAVOpener)
+except ImportError:
+    logger.warning(
+        "WebDAV not found, run`pip install fs-webdavfs` to enable 'webdav://' protocol"
+    )
 
 
-def create_mcp_server(**kwargs) -> FastMCP:
-    mcp = FastMCP("mh-operator MCP server", **kwargs)
-    in_memory_fs = InMemoryFS()
+def load_uri_bytes(uri: str) -> bytes:
+    parsed_url = urlparse(uri)
+    if parsed_url.scheme == "mem":
+        raise NotImplementedError("get the file contents from the InMemoryFTP")
 
-    @mcp.resource("{drive}://{data_path}")
-    def save_resource(
-        data: Annotated[
-            bytes,
-            Field(
-                description="The binary data to save.",
-            ),
-        ],
-        data_path: Annotated[
-            Optional[str],
-            Field(
-                description="Optional: The desired path to save the data. If not provided, a UUID will be generated.",
-            ),
-        ] = None,
-        drive: Annotated[
-            str, Field(description="The location of the uploaded data to be saved")
-        ] = "inmemory",
-    ) -> Annotated[
-        str,
-        Field(
-            description="The path (UUID or user-provided) where the data was saved.",
+    try:
+        from smart_open import open as smart_open
+
+        with smart_open(uri, "rb") as fp:
+            file_bytes = fp.read()
+    except ImportError:
+        raise NotImplementedError("we need to use fs to read the file contents")
+
+    return file_bytes
+
+
+def extract_files_to_temp(uri: str, temp_dir: str) -> List[Path]:
+    parsed_url = urlparse(uri)
+    *_, suffix = parsed_url.path.rsplit(".", maxsplit=1)
+
+    if suffix in ("zip",):
+        src_fs = ZipFS(BytesIO(load_uri_bytes(uri)))
+    elif suffix in ("tar",):
+        src_fs = TarFS(BytesIO(load_uri_bytes(uri)))
+    else:
+        src_fs = open_fs(uri)
+
+    copy_fs(src_fs, temp_dir)
+
+    return list(Path(temp_dir).glob("*.D"))
+
+
+def create_storage() -> StorageBackend:
+    return InMemoryFTP(
+        max_size_mb=settings.in_memory_storage_max_size_mb,
+        ttl_seconds=settings.in_memory_storage_ttl_seconds,
+    )
+
+
+def create_ftp_server() -> aioftp.Server:
+    return aioftp.Server(
+        users=(
+            aioftp.User(login="anonymous"),
+            aioftp.User(login="mh", password="operator"),
         ),
-    ]:
-        """Save binary data to the in-memory filesystem."""
-        if drive != "inmemory":
-            raise NotImplementedError
+        path_io_factory=InMemoryFTP,
+    )
 
-        if data_path is None:
-            data_path = in_memory_fs.generate_uuid_path()
-        in_memory_fs.write(data_path, data)
-        return f"inmemory:{data_path}"
 
-    @mcp.resource("{drive}://{data_path}")
-    def read_resource(
-        data_path: Annotated[
+@cache
+def create_mcp_server(storage: InMemoryFTP) -> FastMCP:
+    mcp = FastMCP("mh-operator MCP server")
+
+    @mcp.resource("resource://{uuid}")
+    def uaf_full_json(
+        uuid: Annotated[
             str,
             Field(
                 description="The path (UUID or user-provided) of the resource to read.",
@@ -84,7 +113,7 @@ def create_mcp_server(**kwargs) -> FastMCP:
         ),
     ]:
         """Read binary data from the in-memory filesystem."""
-        return in_memory_fs.read(data_path)
+        return storage.read_bytes(uuid)
 
     @mcp.tool()
     def read_analysis_file(
@@ -110,26 +139,94 @@ def create_mcp_server(**kwargs) -> FastMCP:
         sample: Annotated[
             str,
             Field(
-                description=f"The Mass Hunter tests (.D) to analysis",
+                description=f"The Mass Hunter tests (.D) to analysis, support `osfs://` for os local files(by default if no URL protocal specified), `s3fs://` for S3 service, `mem://` for inmemory storage",
             ),
         ]
     ) -> Annotated[
         str, Field(description="The exported json file path of the generated UAF file")
     ]:
         """Analysis sample with Mass Hunter"""
+        with TemporaryDirectory() as tmpdir:
+            (sample,) = extract_files_to_temp(sample, tmpdir)
 
-        res = analysis_samples(
-            [SampleInfo(path=Path(sample))],
-            analysis_method=settings.analysis_method,
-            output=settings.output,
-            report_method=settings.report_method,
-            mode=settings.mode,
-            mh_bin_path=settings.mh_bin_path,
-            istd=settings.istd,
-        )
-        return str(res)
+            res = analysis_samples(
+                [SampleInfo(path=sample)],
+                analysis_method=settings.analysis_method,
+                output=settings.output,
+                report_method=settings.report_method,
+                mode=settings.mode,
+                mh_bin_path=settings.mh_bin_path,
+                istd=settings.istd,
+            )
 
-    for tool in asyncio.run(mcp.list_tools()):
+            uaf_path = res.with_suffix("")
+
+            storage.write_bytes(str(uaf_path.name), uaf_path.read_bytes())
+            storage.write_bytes(str(res.name), res.read_bytes())
+
+            return str(res)
+
+    return mcp
+
+
+def create_http_file_server(storage: StorageBackend):
+    async def get_object(request: Request) -> Response:
+        key = request.path_params["key"]
+        try:
+            return StreamingResponse(storage.get(key))
+        except FileNotFoundError:
+            return JSONResponse({"error": "Not Found"}, status_code=404)
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
+
+    async def put_object(request: Request) -> Response:
+        key = request.path_params["key"]
+        try:
+            await storage.put(key, request.stream())
+            return JSONResponse({"status": "ok", "key": key}, status_code=201)
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
+
+    async def delete_object(request: Request) -> Response:
+        key = request.path_params["key"]
+        try:
+            await storage.delete(key)
+            return Response(status_code=204)
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
+
+    async def head_object(request: Request) -> Response:
+        key = request.path_params["key"]
+        try:
+            headers = await storage.head(key)
+            return Response(headers=headers)
+        except FileNotFoundError:
+            return JSONResponse({"error": "Not Found"}, status_code=404)
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
+
+    app = Starlette(
+        debug=True,
+        routes=[
+            Route("/{key:path}", endpoint=get_object, methods=["get"]),
+            Route("/{key:path}", endpoint=put_object, methods=["put"]),
+            Route("/{key:path}", endpoint=delete_object, methods=["delete"]),
+            Route("/{key:path}", endpoint=head_object, methods=["head"]),
+        ],
+    )
+
+    return app
+
+
+@cache
+async def create_http_server() -> Starlette:
+    storage = InMemoryFTP(
+        max_size_mb=settings.in_memory_storage_max_size_mb,
+        ttl_seconds=settings.in_memory_storage_ttl_seconds,
+    )
+
+    mcp = create_mcp_server(storage)
+    for tool in await mcp.list_tools():
         logger.debug(
             f"MCP tool `{tool.name}`\n"
             f"- Description: {tool.description}\n\n"
@@ -140,4 +237,28 @@ def create_mcp_server(**kwargs) -> FastMCP:
             f"{'-' * 40}"
         )
 
-    return mcp
+    file_service = create_http_file_server(storage)
+
+    app = Starlette(
+        routes=[
+            Mount("/mcp", app=mcp.streamable_http_app()),
+            Mount("/file", app=file_service),
+        ]
+    )
+
+    return app
+
+
+async def launch_combined_server(
+    host: str = "127.0.0.1", http_port: int = 3000, ftp_port: int = 3021
+):
+    import uvicorn
+
+    http_server = uvicorn.Server(
+        uvicorn.Config(app=await create_http_server(), host=host, port=http_port)
+    )
+    ftp_server = create_ftp_server()
+
+    await asyncio.gather(
+        http_server.serve(), ftp_server.start(host=host, port=ftp_port)
+    )

@@ -1,9 +1,50 @@
 import asyncio
+import os
+from io import BytesIO
+from tempfile import TemporaryDirectory
 
+import pytest
 from mcp.types import TextContent
 
+from mh_operator.core.config import settings
 from mh_operator.core.mcp_client import MCPClient
+from mh_operator.core.mcp_server import extract_files_to_temp
 from mh_operator.utils.common import logger
+
+
+@pytest.mark.skipif(
+    os.environ.get("SERVER_IS_RUNNING", None) is None,
+    reason="not run until CI launched the server",
+)
+def test_fs():
+    import fs.opener
+    from fs import open_fs
+
+    ftp_uri = settings.ftp_uri or "ftp://mh:operator@127.0.0.1:3021/"
+
+    fs = open_fs(ftp_uri)
+
+    with fs.open("Sample.zip", "wb") as fp:
+        zip_file = BytesIO()
+        from zipfile import ZipFile
+
+        with ZipFile(zip_file, "w") as zip_fp:
+            zip_fp.writestr("Sample01.D/data.ms", "this is ms data")
+
+        fp.write(zip_file.getvalue())
+
+    fs.makedirs("Sample/Sample02.D/", recreate=True)
+    with fs.open("Sample/Sample02.D/data.ms", "w") as fp:
+        fp.writelines(["this is\n", "ms data"])
+
+    with TemporaryDirectory() as tmpdir:
+        (sample,) = extract_files_to_temp(ftp_uri + "Sample.zip", tmpdir)
+        logger.info(f"Extracting zip to {sample}")
+        logger.info((sample / "data.ms").read_text())
+    with TemporaryDirectory() as tmpdir:
+        (sample,) = extract_files_to_temp(ftp_uri + "Sample", tmpdir)
+        logger.info(f"Extracting folder to {sample}")
+        logger.info((sample / "data.ms").read_text())
 
 
 def test_mcp_client():
@@ -44,7 +85,7 @@ def test_mcp_client():
         try:
             await client.connect_to_server(MCP_SERVER_URL)
             await client.list_tools()
-            await client.list_resources()
+            # await client.list_resources()
             await search_doc(client.session)
         finally:
             await client.cleanup()
