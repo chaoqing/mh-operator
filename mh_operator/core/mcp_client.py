@@ -7,6 +7,7 @@ import urllib.request
 from contextlib import AsyncExitStack
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import urlparse
 from zipfile import ZipFile
 
 from mcp import ClientSession, types
@@ -19,6 +20,7 @@ from .config import settings
 
 
 def zip_and_upload(dir_path: Path, target_url: str) -> bytes:
+    assert urlparse(target_url).scheme in ("http", "https")
     with BytesIO() as fp:
         parent_path = dir_path / ".."
         with ZipFile(fp, "w") as zip_fp:
@@ -33,7 +35,7 @@ def zip_and_upload(dir_path: Path, target_url: str) -> bytes:
     req.add_header("Content-Type", "application/octet-stream")
     req.add_header("Content-Length", str(len(data_bytes)))
 
-    with urllib.request.urlopen(req) as response:
+    with urllib.request.urlopen(req) as response:  # nosec B310
         return response.read()
 
 
@@ -49,7 +51,7 @@ def create_uploader_mcp_server() -> FastMCP:
             ),
         ],
         endpoint: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 description="The uri where the zip files will be upload to",
             ),
@@ -74,7 +76,7 @@ def create_uploader_mcp_server() -> FastMCP:
 
 class MCPClient:
     def __init__(self):
-        self.session: Optional[ClientSession] = None
+        self.session: ClientSession | None = None
         self.exit_stack = AsyncExitStack()
 
     async def connect_to_server(self, mcp_server_url: str):
@@ -108,7 +110,7 @@ class MCPClient:
     async def list_resources(self):
         response: types.ListResourcesResult = await self.session.list_resources()
 
-        available_resources: List[types.Resource] = response.resources
+        available_resources: list[types.Resource] = response.resources
         for resource in available_resources:
             logger.info(
                 f"- Resource: {resource.name}\n"
