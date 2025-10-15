@@ -1,13 +1,75 @@
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
 import json
+import os
+import urllib.error
+import urllib.request
 from contextlib import AsyncExitStack
+from io import BytesIO
+from pathlib import Path
+from zipfile import ZipFile
 
 from mcp import ClientSession, types
 from mcp.client.streamable_http import streamablehttp_client
-from pydantic import AnyUrl
+from mcp.server import FastMCP
+from pydantic import AnyUrl, Field
 
 from ..utils.common import logger
+from .config import settings
+
+
+def zip_and_upload(dir_path: Path, target_url: str) -> bytes:
+    with BytesIO() as fp:
+        parent_path = dir_path / ".."
+        with ZipFile(fp, "w") as zip_fp:
+            for root, dirs, files in os.walk(dir_path):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    zip_fp.write(file_path, os.path.relpath(file_path, parent_path))
+
+        data_bytes = fp.getvalue()
+    req = urllib.request.Request(target_url, data=data_bytes, method="PUT")
+
+    req.add_header("Content-Type", "application/octet-stream")
+    req.add_header("Content-Length", str(len(data_bytes)))
+
+    with urllib.request.urlopen(req) as response:
+        return response.read()
+
+
+def create_uploader_mcp_server() -> FastMCP:
+    mcp = FastMCP("test.D upload server")
+
+    @mcp.tool()
+    def upload_test_zip(
+        test_path: Annotated[
+            str,
+            Field(
+                description="The Agilent test.D path",
+            ),
+        ],
+        endpoint: Annotated[
+            Optional[str],
+            Field(
+                description="The uri where the zip files will be upload to",
+            ),
+        ] = None,
+    ) -> Annotated[
+        str,
+        Field(description="The URI of the zipped file returned by the endpoint"),
+    ]:
+        """Compress the Agilent GCMS test.D files into zip and upload to"""
+        endpoint = endpoint or settings.mcp_server_url
+        test_dir = Path(test_path)
+        response_bytes = zip_and_upload(
+            test_dir, f"{endpoint}/file/{test_dir.name}.zip"
+        )
+        res = json.loads(response_bytes.decode())
+        assert res["status"] == "ok"
+
+        return f"{endpoint}/file/{res['key']}"
+
+    return mcp
 
 
 class MCPClient:

@@ -1,13 +1,14 @@
 import asyncio
 import os
 from io import BytesIO
+from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import pytest
 from mcp.types import TextContent
 
 from mh_operator.core.config import settings
-from mh_operator.core.mcp_client import MCPClient
+from mh_operator.core.mcp_client import MCPClient, zip_and_upload
 from mh_operator.core.mcp_server import extract_files_to_temp
 from mh_operator.utils.common import logger
 
@@ -17,6 +18,11 @@ from mh_operator.utils.common import logger
     reason="not run until CI launched the server",
 )
 def test_fs():
+    http_uri = settings.mcp_server_url or "http://127.0.0.1:3000"
+
+    res = zip_and_upload(Path(__file__).parent, f"{http_uri}/file/tests.zip")
+    assert res.startswith(b'{"status":"ok","key":"')
+
     import fs.opener
     from fs import open_fs
 

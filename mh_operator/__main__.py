@@ -127,12 +127,28 @@ def mcp_server(
         from mh_operator.core.config import settings
         from mh_operator.core.mcp_server import launch_combined_server
 
+        if settings.mcp_server_url is None:
+            settings.mcp_server_url = f"http://{host}:{port}"
         if settings.ftp_uri is None:
             settings.ftp_uri = f"ftp://{host}:{ftp_port}"
 
         asyncio.run(
             launch_combined_server(host=host, http_port=port, ftp_port=ftp_port)
         )
+
+    except ImportError:
+        logger.fatal("pip install mh-operator[mcp] to enable the mcp service")
+        raise typer.Exit(1)
+
+
+@app.command(name="uploader-mcp")
+def mcp_client():
+    """Serve the Uploader MCP to help upload test.D to the MCP server"""
+    try:
+        from mh_operator.core.mcp_client import create_uploader_mcp_server
+
+        mcp = create_uploader_mcp_server()
+        mcp.run()
 
     except ImportError:
         logger.fatal("pip install mh-operator[mcp] to enable the mcp service")

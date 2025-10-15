@@ -31,6 +31,8 @@ class Settings(BaseSettings):
 
     in_memory_storage_max_size_mb: int = 100
     in_memory_storage_ttl_seconds: int = 3600
+
+    mcp_server_url: Optional[str] = None
     ftp_uri: Optional[str] = None
 
 

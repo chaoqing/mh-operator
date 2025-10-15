@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from datetime import datetime
 from io import BytesIO
+from pathlib import Path
 
 import aioftp
 from cachetools import TTLCache
@@ -11,6 +12,15 @@ from pydantic import Field
 from pydantic.dataclasses import dataclass
 
 from mh_operator.utils.common import SingletonABCMeta
+
+
+async def async_read_bytes(path: Path, chunk: int = -1) -> AsyncGenerator[bytes, None]:
+    async def read_in_chunks():
+        with path.open("rb") as f:
+            while data := f.read(chunk):
+                yield data
+
+    yield read_in_chunks()
 
 
 class StorageBackend(ABC):
@@ -43,6 +53,7 @@ class InMemoryFileObject:
 
 class InMemoryStorage(StorageBackend):
     def __init__(self, max_size_mb: int = 100, ttl_seconds: int = 3600, **_):
+        super().__init__()
         max_size_bytes = max_size_mb * 1024 * 1024
         self._storage = TTLCache(
             maxsize=max_size_bytes,
@@ -95,13 +106,9 @@ class InMemoryStorage(StorageBackend):
         }
 
 
-class _InMemoryFTP(aioftp.MemoryPathIO):
+class InMemoryFTP(aioftp.MemoryPathIO, InMemoryStorage, metaclass=SingletonABCMeta):
     def __init__(self, **kwargs):
+        InMemoryStorage.__init__(self, **kwargs)
         kwargs.pop("max_size_mb", None)
         kwargs.pop("ttl_seconds", None)
-        super().__init__(**kwargs)
-
-
-class InMemoryFTP(_InMemoryFTP, InMemoryStorage, metaclass=SingletonABCMeta):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        aioftp.MemoryPathIO.__init__(self, **kwargs)

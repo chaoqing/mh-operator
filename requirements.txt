@@ -3,6 +3,7 @@ annotated-types==0.7.0
 anyio==4.10.0
 appdirs==1.4.4
 astroid==2.15.8
+asyncer==0.0.9
 attrs==25.3.0
 bandit==1.8.6
 black==24.10.0
