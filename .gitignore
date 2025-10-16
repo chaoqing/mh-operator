@@ -147,6 +147,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+.env
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -615,5 +616,3 @@ healthchecksdb
 MigrationBackup/
 
 # End of https://www.gitignore.io/api/osx,python,pycharm,windows,visualstudio,visualstudiocode
-
-.idea/

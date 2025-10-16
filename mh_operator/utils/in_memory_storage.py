@@ -3,24 +3,21 @@ from typing import Any, Dict, Optional
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from datetime import datetime
+from functools import cached_property
 from io import BytesIO
 from pathlib import Path
 
-import aioftp
 from cachetools import TTLCache
 from pydantic import Field
 from pydantic.dataclasses import dataclass
 
-from mh_operator.utils.common import SingletonABCMeta
+from mh_operator.utils.common import BaseSingletonMeta, SingletonABCMeta
 
 
 async def async_read_bytes(path: Path, chunk: int = -1) -> AsyncGenerator[bytes, None]:
-    async def read_in_chunks():
-        with path.open("rb") as f:
-            while data := f.read(chunk):
-                yield data
-
-    yield read_in_chunks()
+    with path.open("rb") as f:
+        while data := f.read(chunk):
+            yield data
 
 
 class StorageBackend(ABC):
@@ -106,9 +103,7 @@ class InMemoryStorage(StorageBackend):
         }
 
 
-class InMemoryFTP(aioftp.MemoryPathIO, InMemoryStorage, metaclass=SingletonABCMeta):
-    def __init__(self, **kwargs):
-        InMemoryStorage.__init__(self, **kwargs)
-        kwargs.pop("max_size_mb", None)
-        kwargs.pop("ttl_seconds", None)
-        aioftp.MemoryPathIO.__init__(self, **kwargs)
+class InMemoryStorageSingleton(InMemoryStorage, metaclass=BaseSingletonMeta):
+    def __init__(self, *_, **__):
+        """this should never be called because the BaseSingletonMeta.__call__ handle the creation"""
+        assert False

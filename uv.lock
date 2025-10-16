@@ -750,7 +750,7 @@ cli = [
 
 [[package]]
 name = "mh-operator"
-version = "0.1.5"
+version = "0.1.6"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },
@@ -761,6 +761,7 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
+    { name = "aioftp" },
     { name = "bandit" },
     { name = "black" },
     { name = "coverage" },
@@ -783,7 +784,6 @@ dev = [
     { name = "xlsxwriter" },
 ]
 mcp = [
-    { name = "aioftp" },
     { name = "asyncer" },
     { name = "cachetools" },
     { name = "fs" },
@@ -798,7 +798,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aioftp", marker = "extra == 'mcp'", specifier = ">=0.27.2" },
+    { name = "aioftp", marker = "extra == 'dev'", specifier = ">=0.27.2" },
     { name = "asyncer", marker = "extra == 'mcp'", specifier = ">=0.0.9" },
     { name = "bandit", marker = "extra == 'dev'", specifier = ">=1.7.1,<2.0.0" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=24.4.0,<25.0.0" },

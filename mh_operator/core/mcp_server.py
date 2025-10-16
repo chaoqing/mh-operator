@@ -8,7 +8,6 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import urlparse
 
-import aioftp
 import fs.opener
 from asyncer import asyncify
 from fs import open_fs
@@ -20,12 +19,16 @@ from pydantic import Field
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
-from starlette.routing import Mount, Route
 
 from ..routines.analysis_samples import SampleInfo, analysis_samples
 from ..routines.extract_uaf import extract_mass_hunter_analysis_file
-from ..utils.common import logger
-from ..utils.in_memory_storage import InMemoryFTP, StorageBackend, async_read_bytes
+from ..utils.common import SingletonABCMeta, logger
+from ..utils.in_memory_storage import (
+    InMemoryStorage,
+    InMemoryStorageSingleton,
+    StorageBackend,
+    async_read_bytes,
+)
 from .config import settings
 
 try:
@@ -49,7 +52,9 @@ except ImportError:
 def load_uri_bytes(uri: str) -> bytes:
     parsed_url = urlparse(uri)
     if uri.startswith(settings.mcp_server_url):
-        return InMemoryFTP().read_bytes(parsed_url.path.removeprefix("/file/"))
+        return InMemoryStorageSingleton().read_bytes(
+            parsed_url.path.removeprefix("/file/")
+        )
     try:
         from smart_open import open as smart_open
 
@@ -77,35 +82,8 @@ def extract_files_to_temp(uri: str, temp_dir: str) -> List[Path]:
     return list(Path(temp_dir).glob("*.D"))
 
 
-def create_storage() -> StorageBackend:
-    return InMemoryFTP(
-        max_size_mb=settings.in_memory_storage_max_size_mb,
-        ttl_seconds=settings.in_memory_storage_ttl_seconds,
-    )
-
-
-def create_ftp_server(path_io_factory=InMemoryFTP, **kwargs) -> aioftp.Server:
-    return aioftp.Server(
-        users=(
-            aioftp.User(login="anonymous"),
-            aioftp.User(login="mh", password="operator"),
-        ),
-        path_io_factory=path_io_factory,
-        **kwargs,
-    )
-
-
-def create_http_server() -> Starlette:
-    return create_mcp_server(
-        storage=InMemoryFTP(
-            max_size_mb=settings.in_memory_storage_max_size_mb,
-            ttl_seconds=settings.in_memory_storage_ttl_seconds,
-        )
-    ).streamable_http_app()
-
-
 @cache
-def create_mcp_server(storage: StorageBackend, file_service=True, **kwargs) -> FastMCP:
+def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> FastMCP:
     mcp = FastMCP("mh-operator MCP server", **kwargs)
 
     @mcp.resource("resource://{key}")
@@ -123,7 +101,7 @@ def create_mcp_server(storage: StorageBackend, file_service=True, **kwargs) -> F
         ),
     ]:
         """Read binary data from the in-memory filesystem."""
-        return await storage.get(key)
+        return storage.read_bytes(key)
 
     @mcp.tool()
     async def read_analysis_file(
@@ -174,7 +152,7 @@ def create_mcp_server(storage: StorageBackend, file_service=True, **kwargs) -> F
                 mh_bin_path=settings.mh_bin_path,
                 istd=settings.istd,
             )
-            key = f"{sample.name}/res.json" if resource_key is None else resource_key
+            key = f"{sample.name}.json" if resource_key is None else resource_key
             await asyncio.gather(
                 storage.put(
                     key.removesuffix(".json") + ".uaf",
@@ -234,17 +212,47 @@ def attach_file_service(mcp: FastMCP, storage: StorageBackend) -> FastMCP:
     return mcp
 
 
+def create_http_server() -> Starlette:
+    storage = InMemoryStorageSingleton(
+        InMemoryStorage,
+        max_size_mb=settings.in_memory_storage_max_size_mb,
+        ttl_seconds=settings.in_memory_storage_ttl_seconds,
+    )
+
+    return create_mcp_server(storage=storage).streamable_http_app()
+
+
 async def launch_combined_server(
     host: str = "127.0.0.1", http_port: int = 3000, ftp_port: int = 3021
 ):
+    import aioftp
     import uvicorn
 
-    mcp = create_mcp_server(
-        storage=InMemoryFTP(
-            max_size_mb=settings.in_memory_storage_max_size_mb,
-            ttl_seconds=settings.in_memory_storage_ttl_seconds,
-        )
+    class _FTPStorage(aioftp.MemoryPathIO):
+        """This class is for making sure _FTPStorage work with InMemoryStorage
+        For now the storage is actually seperated"""
+
+        # TODO: make FTP and HTTP share the same cache pool
+        # TODO: Maybe support lazy initialize in InMemoryFTP to skip the first one inside InMemoryStorageSingleton
+        #  and make the one `aioftp.Server(path_io_factory=InMemoryFTP)` really works
+        def __init__(self, max_size_mb=None, ttl_seconds=None, **kwargs):
+            super().__init__(**kwargs)
+
+    class InMemoryFTP(InMemoryStorage, _FTPStorage, metaclass=SingletonABCMeta):
+        # _FTPStorage must follow InMemoryStorage because aioftp.MemoryPathIO breaks the super().__init__ chain
+        pass
+
+    storage = InMemoryStorageSingleton(
+        InMemoryFTP,
+        max_size_mb=settings.in_memory_storage_max_size_mb,
+        ttl_seconds=settings.in_memory_storage_ttl_seconds,
     )
+    assert isinstance(
+        storage, InMemoryFTP
+    ), "There must be call to InMemoryStorageSingleton before here"
+
+    mcp = create_mcp_server(storage=storage)
+
     for tool in await mcp.list_tools():
         logger.debug(
             f"MCP tool `{tool.name}`\n"
@@ -259,7 +267,14 @@ async def launch_combined_server(
     http_server = uvicorn.Server(
         uvicorn.Config(app=mcp.streamable_http_app(), host=host, port=http_port)
     )
-    ftp_server = create_ftp_server(path_io_factory=InMemoryFTP)
+
+    ftp_server = aioftp.Server(
+        users=(
+            aioftp.User(login="anonymous"),
+            aioftp.User(login="mh", password="operator"),
+        ),
+        path_io_factory=InMemoryFTP,
+    )
 
     await asyncio.gather(
         http_server.serve(), ftp_server.start(host=host, port=ftp_port)

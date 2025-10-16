@@ -9,6 +9,7 @@ import typer
 from rich.console import Console
 
 from mh_operator import version
+from mh_operator.core.config import settings
 from mh_operator.core.constants import SampleType
 from mh_operator.utils.common import logger
 from mh_operator.utils.ironpython27 import (
@@ -114,27 +115,42 @@ def mcp_server(
         ),
     ] = 3000,
     ftp_port: Annotated[
-        int,
+        int | None,
         typer.Option(
-            help="The ftp server listen port",
+            help="The ftp server listen port (3021 or default None means disabled)",
         ),
-    ] = 3021,
+    ] = None,
 ):
     """Serve the MCP server for mh-operator"""
     try:
-        import asyncio
-
         from mh_operator.core.config import settings
-        from mh_operator.core.mcp_server import launch_combined_server
 
         if settings.mcp_server_url is None:
             settings.mcp_server_url = f"http://{host}:{port}"
-        if settings.ftp_uri is None:
-            settings.ftp_uri = f"ftp://{host}:{ftp_port}"
 
-        asyncio.run(
-            launch_combined_server(host=host, http_port=port, ftp_port=ftp_port)
-        )
+        if ftp_port is not None:
+            try:
+                import aioftp
+            except ImportError:
+                logger.warning("aioftp not found, run `pip install aioftp` to install")
+                raise typer.Exit(1)
+
+            if settings.ftp_uri is None:
+                settings.ftp_uri = f"ftp://{host}:{ftp_port}"
+
+            import asyncio
+
+            from mh_operator.core.mcp_server import launch_combined_server
+
+            asyncio.run(
+                launch_combined_server(host=host, http_port=port, ftp_port=ftp_port)
+            )
+        else:
+            import uvicorn
+
+            from mh_operator.core.mcp_server import create_http_server
+
+            uvicorn.run(app=create_http_server(), host=host, port=port)
 
     except ImportError:
         logger.fatal("pip install mh-operator[mcp] to enable the mcp service")

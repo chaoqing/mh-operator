@@ -1,12 +1,39 @@
+from typing import Optional
+
 import abc
 import logging
 import sys
+import threading
 
 from ..legacy.common import SingletonMeta
 
 
 class SingletonABCMeta(SingletonMeta, abc.ABCMeta):
     pass
+
+
+class BaseSingletonMeta(abc.ABCMeta):
+    """Singleton to make sure the base class have only one instance"""
+
+    def __new__(cls, name, bases, dct):
+        new_class = super().__new__(cls, name, bases, dct)
+        assert bases, f"{name} must have at least one base class defined"
+        new_class._base_class, *_ = bases
+        new_class._instance = None
+        new_class._lock = threading.Lock()
+        return new_class
+
+    def __call__(cls, target_class: type | None = None, *args, **kwargs):
+        # use double check lock to make sure thread safety
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    if target_class is None:
+                        target_class = cls._base_class
+                    assert issubclass(target_class, cls._base_class)
+                    cls._instance = target_class(*args, **kwargs)
+
+        return cls._instance
 
 
 class PackageLogger(metaclass=SingletonMeta):
