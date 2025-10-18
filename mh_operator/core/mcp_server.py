@@ -66,7 +66,7 @@ def load_uri_bytes(uri: str) -> bytes:
     return file_bytes
 
 
-def extract_files_to_temp(uri: str, temp_dir: str) -> List[Path]:
+def extract_files_to_temp(uri: str, temp_dir: str) -> list[Path]:
     parsed_url = urlparse(uri)
     *_, suffix = parsed_url.path.rsplit(".", maxsplit=1)
 
@@ -86,7 +86,24 @@ def extract_files_to_temp(uri: str, temp_dir: str) -> List[Path]:
 def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> FastMCP:
     mcp = FastMCP("mh-operator MCP server", **kwargs)
 
-    @mcp.resource("resource://{key}")
+    @mcp.resource("resource://uaf/{key}")
+    async def uaf_project(
+        key: Annotated[
+            str,
+            Field(
+                description="The path (UUID or user-provided) of the resource to read.",
+            ),
+        ],
+    ) -> Annotated[
+        bytes | None,
+        Field(
+            description="The binary data of the resource, or None if not found.",
+        ),
+    ]:
+        """Read binary data from the in-memory filesystem."""
+        return storage.read_bytes(key)
+
+    @mcp.resource("resource://uaf_json/{key}")
     async def uaf_full_json(
         key: Annotated[
             str,
@@ -95,13 +112,13 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
             ),
         ],
     ) -> Annotated[
-        Optional[bytes],
+        str | None,
         Field(
             description="The binary data of the resource, or None if not found.",
         ),
     ]:
         """Read binary data from the in-memory filesystem."""
-        return storage.read_bytes(key)
+        return storage.read_bytes(key).decode()
 
     @mcp.tool()
     async def read_analysis_file(
@@ -130,14 +147,23 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
                 description=f"The Mass Hunter tests (.D) to analysis, support `osfs://` for os local files(by default if no URL protocal specified), `s3fs://` for S3 service, `mem://` for inmemory storage",
             ),
         ],
-        resource_key: Annotated[
-            Optional[str],
+        raw: Annotated[
+            bool,
             Field(
-                description="The key of the resource results, usually in format of `sample_name.json`"
+                description="Return the result resource if set to be raw, otherwise the processed all compounds information in json format"
+            ),
+        ] = False,
+        resource_key: Annotated[
+            str | None,
+            Field(
+                description="The key of the resource results, by default the sample name"
             ),
         ] = None,
     ) -> Annotated[
-        str, Field(description="The exported json file path of the generated UAF file")
+        str,
+        Field(
+            description="The exported json (raw resource or processed) of the generated UAF file"
+        ),
     ]:
         """Analysis sample with Mass Hunter"""
         with TemporaryDirectory() as tmpdir:
@@ -152,16 +178,20 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
                 mh_bin_path=settings.mh_bin_path,
                 istd=settings.istd,
             )
-            key = f"{sample.name}.json" if resource_key is None else resource_key
+            key = f"{sample.name}" if resource_key is None else resource_key
             await asyncio.gather(
                 storage.put(
-                    key.removesuffix(".json") + ".uaf",
+                    key + ".uaf",
                     async_read_bytes(res.with_suffix("")),
                 ),
-                storage.put(key, async_read_bytes(res)),
+                storage.put(key + ".json", async_read_bytes(res)),
             )
 
-            return key
+            if raw:
+                return f"resource://uaf_json/{key}.json"
+            else:
+                # TODO: do the post processing
+                return res.read_text()
 
     if file_service:
         attach_file_service(mcp, storage)

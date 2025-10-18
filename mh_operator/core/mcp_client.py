@@ -4,14 +4,26 @@ import asyncio
 import base64
 import json
 import os
-import urllib.error
-import urllib.request
+from collections.abc import Iterable
 from contextlib import AsyncExitStack
 from io import BytesIO
+
+try:
+    from itertools import batched
+except ImportError:
+    from itertools import islice
+
+    def batched(iterable, n):
+        it = iter(iterable)
+        while batch := list(islice(it, n)):
+            yield batch
+
+
 from pathlib import Path
 from urllib.parse import urlparse
 from zipfile import ZipFile
 
+import httpx
 from mcp import ClientSession, types
 from mcp.client.streamable_http import streamablehttp_client
 from mcp.server import FastMCP
@@ -32,13 +44,13 @@ def zip_and_upload(dir_path: Path, target_url: str) -> bytes:
                     zip_fp.write(file_path, os.path.relpath(file_path, parent_path))
 
         data_bytes = fp.getvalue()
-    req = urllib.request.Request(target_url, data=data_bytes, method="PUT")
-
-    req.add_header("Content-Type", "application/octet-stream")
-    req.add_header("Content-Length", str(len(data_bytes)))
-
-    with urllib.request.urlopen(req) as response:  # nosec B310
-        return response.read()
+    resp = httpx.put(
+        target_url,
+        content=data_bytes,
+        headers={"Content-Type": "application/octet-stream"},
+    )
+    resp.raise_for_status()
+    return resp.content
 
 
 def create_uploader_mcp_server() -> FastMCP:
@@ -76,7 +88,7 @@ def create_uploader_mcp_server() -> FastMCP:
 
 
 class MCPClient:
-    def __init__(self, mcp_server_url: Optional[str] = None):
+    def __init__(self, mcp_server_url: str | None = None):
         self.session: ClientSession | None = None
         self.exit_stack = AsyncExitStack()
         self.server_url = mcp_server_url or settings.mcp_server_url
@@ -131,12 +143,13 @@ class MCPClient:
         logger.debug(f"test {test_D} uploaded to {self.server_url}")
         assert res["status"] == "ok"
         res = await self.call_tool(
-            "analysis_sample", sample=f"{self.server_url}/file/{res['key']}"
+            "analysis_sample",
+            sample=f"{self.server_url}/file/{res['key']}",
+            raw=True,
         )
         uaf_json_key = res.text
         logger.debug(f"remote analysis_sample complete with result key {uaf_json_key}")
-        uaf_json: bytes = await self.get_resource(f"resource://{uaf_json_key}")
-        return uaf_json.decode()
+        return await self.get_resource(uaf_json_key)
 
     async def show_resources(self):
         response: types.ListResourcesResult = await self.session.list_resources()
@@ -178,15 +191,22 @@ class MCPClient:
         await self.exit_stack.aclose()
 
 
-def analysis_example(sample: Path, mcp_server_url: Optional[str] = None):
+def analysis_examples(
+    samples: Iterable[Path], mcp_server_url: str | None = None, batch=5
+):
     async def main():
         client = MCPClient(mcp_server_url=mcp_server_url)
+        results = []
+
         try:
             await client.connect_to_server()
-            await client.show_tools()
-            await client.show_resources()
-            await client.show_resource_templates()
-            return await client.analysis_sample(sample)
+            for sample_batch in batched(samples, batch):
+                results.extend(
+                    await asyncio.gather(
+                        *[client.analysis_sample(s) for s in sample_batch]
+                    )
+                )
+            return results
         finally:
             await client.cleanup()
 

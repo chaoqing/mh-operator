@@ -1,13 +1,17 @@
 import asyncio
+import json
 import os
 from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import pytest
+from fs.copy import copy_fs
+from fs.opener import open_fs
+from fs.zipfs import ZipFS
 
 from mh_operator.core.config import settings
-from mh_operator.core.mcp_client import analysis_example, zip_and_upload
+from mh_operator.core.mcp_client import analysis_examples, zip_and_upload
 from mh_operator.core.mcp_server import extract_files_to_temp
 from mh_operator.utils.common import logger
 
@@ -56,9 +60,20 @@ def test_fs():
     os.environ.get("SERVER_IS_RUNNING", None) is None,
     reason="not run until CI launched the server",
 )
-def test_analysis_example():
-    test_d = Path(__file__).with_name("data") / "yellow.D"
-    if not test_d.exists():
-        return
-    res = analysis_example(test_d)
-    Path(test_d.with_suffix(".json")).write_text(res)
+def test_analysis_examples():
+    test_d = (
+        Path(__file__).with_name("data")
+        / "NIST Public Data Repository (Rapid GC-MS of Seized Drugs).zip"
+    )
+    with TemporaryDirectory() as tmpdir:
+        copy_fs(ZipFS(str(test_d)), open_fs(tmpdir))
+        tests = list(Path(tmpdir).glob("*/*.D"))[:5]
+        for test, result in zip(
+            tests,
+            analysis_examples(
+                tests,
+                mcp_server_url=settings.mcp_server_url or "http://127.0.0.1:3000",
+                batch=2,
+            ),
+        ):
+            test_d.with_name(test.name + ".json").write_text(result)
