@@ -50,6 +50,9 @@ except ImportError:
 
 
 def load_uri_bytes(uri: str) -> bytes:
+    if uri.startswith("resource://sample/"):
+        return InMemoryStorageSingleton().read_bytes(uri[len("resource://sample/") :])
+
     parsed_url = urlparse(uri)
     if uri.startswith(settings.mcp_server_url):
         return InMemoryStorageSingleton().read_bytes(
@@ -103,7 +106,7 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
         """Read binary data from the in-memory filesystem."""
         return storage.read_bytes(key)
 
-    @mcp.resource("resource://uaf_json/{key}")
+    @mcp.resource("resource://report/{key}")
     async def uaf_full_json(
         key: Annotated[
             str,
@@ -178,7 +181,11 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
                 mh_bin_path=settings.mh_bin_path,
                 istd=settings.istd,
             )
-            key = f"{sample.name}" if resource_key is None else resource_key
+            key = (
+                storage.create_unique_key(f"{sample.name}")
+                if resource_key is None
+                else resource_key
+            )
             await asyncio.gather(
                 storage.put(
                     key + ".uaf",
@@ -188,7 +195,7 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
             )
 
             if raw:
-                return f"resource://uaf_json/{key}.json"
+                return f"resource://report/{key}.json"
             else:
                 # TODO: do the post processing
                 return res.read_text()
@@ -199,7 +206,7 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
     return mcp
 
 
-def attach_file_service(mcp: FastMCP, storage: StorageBackend) -> FastMCP:
+def attach_file_service(mcp: FastMCP, storage: InMemoryStorage) -> FastMCP:
     @mcp.custom_route("/file/{key:path}", methods=["GET"])
     async def get_object(request: Request) -> Response:
         key = request.path_params["key"]
@@ -212,10 +219,12 @@ def attach_file_service(mcp: FastMCP, storage: StorageBackend) -> FastMCP:
 
     @mcp.custom_route("/file/{key:path}", methods=["PUT"])
     async def put_object(request: Request) -> Response:
-        key = request.path_params["key"]
+        key = storage.create_unique_key(request.path_params["key"])
         try:
             await storage.put(key, request.stream())
-            return JSONResponse({"status": "ok", "key": key}, status_code=201)
+            return JSONResponse(
+                {"status": "ok", "uri": f"resource://sample/{key}"}, status_code=201
+            )
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
 

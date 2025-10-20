@@ -1,5 +1,6 @@
 from typing import Any, Dict, Optional
 
+import hashlib
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from datetime import datetime
@@ -57,6 +58,23 @@ class InMemoryStorage(StorageBackend):
             ttl=ttl_seconds,
             getsizeof=lambda value: value.size,
         )
+
+    def create_unique_key(self, path: str) -> str:
+        """give one path a unique key"""
+        path = Path(path)
+
+        key = path.name
+        if key in self._storage:
+            key = "-" + key
+            sha256 = hashlib.sha256()
+            sha256.update(str(path.parent).encode("utf-8"))
+            for c in sha256.hexdigest():
+                key = c + key
+                if key not in self._storage:
+                    break
+        # TODO: we may need thread locking here
+        self.write_bytes(key, b"")
+        return key
 
     def ensure_exist(self, key: str):
         if key not in self._storage:

@@ -24,7 +24,7 @@ def test_fs():
     http_uri = settings.mcp_server_url or "http://127.0.0.1:3000"
 
     res = zip_and_upload(Path(__file__).parent, f"{http_uri}/file/tests.zip")
-    assert res.startswith(b'{"status":"ok","key":"')
+    assert res.startswith(b'{"status":"ok","uri":"resource://sample/')
 
     import fs.opener
     from fs import open_fs

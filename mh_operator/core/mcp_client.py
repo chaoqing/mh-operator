@@ -144,7 +144,7 @@ class MCPClient:
         assert res["status"] == "ok"
         res = await self.call_tool(
             "analysis_sample",
-            sample=f"{self.server_url}/file/{res['key']}",
+            sample=res["uri"],
             raw=True,
         )
         uaf_json_key = res.text
