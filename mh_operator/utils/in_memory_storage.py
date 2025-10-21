@@ -1,6 +1,7 @@
 from typing import Any, Dict, Optional
 
 import hashlib
+import threading
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from datetime import datetime
@@ -49,6 +50,12 @@ class InMemoryFileObject:
         return len(self.data)
 
 
+def sha256sum(content: str) -> str:
+    sha256 = hashlib.sha256()
+    sha256.update(content.encode("utf-8"))
+    return sha256.hexdigest()
+
+
 class InMemoryStorage(StorageBackend):
     def __init__(self, max_size_mb: int = 100, ttl_seconds: int = 3600, **_):
         super().__init__()
@@ -64,16 +71,15 @@ class InMemoryStorage(StorageBackend):
         path = Path(path)
 
         key = path.name
-        if key in self._storage:
-            key = "-" + key
-            sha256 = hashlib.sha256()
-            sha256.update(str(path.parent).encode("utf-8"))
-            for c in sha256.hexdigest():
-                key = c + key
-                if key not in self._storage:
-                    break
-        # TODO: we may need thread locking here
-        self.write_bytes(key, b"")
+        with threading.Lock():
+            if key in self._storage:
+                key = "-" + key
+                for c in sha256sum(str(path.parent)):
+                    # We assume there would be at most 64 collisions
+                    key = c + key
+                    if key not in self._storage:
+                        break
+            self.write_bytes(key, b"")
         return key
 
     def ensure_exist(self, key: str):

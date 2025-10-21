@@ -144,7 +144,7 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
 
     @mcp.tool()
     async def analysis_sample(
-        sample: Annotated[
+        uri: Annotated[
             str,
             Field(
                 description=f"The Mass Hunter tests (.D) to analysis, support `osfs://` for os local files(by default if no URL protocal specified), `s3fs://` for S3 service, `mem://` for inmemory storage",
@@ -156,12 +156,6 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
                 description="Return the result resource if set to be raw, otherwise the processed all compounds information in json format"
             ),
         ] = False,
-        resource_key: Annotated[
-            str | None,
-            Field(
-                description="The key of the resource results, by default the sample name"
-            ),
-        ] = None,
     ) -> Annotated[
         str,
         Field(
@@ -169,8 +163,10 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
         ),
     ]:
         """Analysis sample with Mass Hunter"""
+        logger.debug(f"got request to analysis {uri}")
         with TemporaryDirectory() as tmpdir:
-            (sample,) = await asyncify(extract_files_to_temp)(sample, tmpdir)
+            (sample,) = await asyncify(extract_files_to_temp)(uri, tmpdir)
+            logger.debug(f"got sample {sample} from {uri}")
 
             res = await asyncify(analysis_samples)(
                 [SampleInfo(path=sample)],
@@ -181,21 +177,23 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
                 mh_bin_path=settings.mh_bin_path,
                 istd=settings.istd,
             )
-            key = (
-                storage.create_unique_key(f"{sample.name}")
-                if resource_key is None
-                else resource_key
+            logger.debug(f"analysis {sample} result in {res}")
+
+            resource_key = storage.create_unique_key(
+                Path(urlparse(uri).path).with_suffix(".json")
             )
+            logger.debug(f"result will be saved as key {resource_key}")
+
             await asyncio.gather(
                 storage.put(
-                    key + ".uaf",
-                    async_read_bytes(res.with_suffix("")),
+                    resource_key.removesuffix(".json") + ".uaf",
+                    async_read_bytes(res.with_suffix(".uaf")),
                 ),
-                storage.put(key + ".json", async_read_bytes(res)),
+                storage.put(resource_key, async_read_bytes(res)),
             )
 
             if raw:
-                return f"resource://report/{key}.json"
+                return f"resource://report/{resource_key}"
             else:
                 # TODO: do the post processing
                 return res.read_text()

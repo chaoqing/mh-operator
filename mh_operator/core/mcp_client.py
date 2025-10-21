@@ -95,6 +95,7 @@ class MCPClient:
 
     async def connect_to_server(self):
         """Connect to an MCP server"""
+        logger.debug(f"Connecting MCP server {self.server_url}/mcp")
         read_stream, write_stream, _ = await self.exit_stack.enter_async_context(
             streamablehttp_client(self.server_url + "/mcp")
         )
@@ -105,6 +106,9 @@ class MCPClient:
         await self.session.initialize()
 
     async def show_tools(self):
+        if self.session is None:
+            await self.connect_to_server()
+
         response = await self.session.list_tools()
         for tool in response.tools:
             logger.info(
@@ -118,6 +122,9 @@ class MCPClient:
             )
 
     async def get_resource(self, uri: str) -> bytes | str:
+        if self.session is None:
+            await self.connect_to_server()
+
         response = await self.session.read_resource(uri)
         (res,) = response.contents
         if isinstance(res, types.BlobResourceContents):
@@ -130,7 +137,9 @@ class MCPClient:
         if self.session is None:
             await self.connect_to_server()
 
+        logger.debug(f"Call tool {tool} with args {kwargs}")
         response = await self.session.call_tool(tool, arguments=kwargs)
+        logger.debug(f"Got response {response}")
         assert not response.isError
         (res,) = response.content
         return res
@@ -144,11 +153,11 @@ class MCPClient:
         assert res["status"] == "ok"
         res = await self.call_tool(
             "analysis_sample",
-            sample=res["uri"],
+            uri=res["uri"],
             raw=True,
         )
         uaf_json_key = res.text
-        logger.debug(f"remote analysis_sample complete with result key {uaf_json_key}")
+        logger.debug(f"remote analysis_sample complete with {uaf_json_key}")
         return await self.get_resource(uaf_json_key)
 
     async def show_resources(self):
