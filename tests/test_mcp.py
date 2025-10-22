@@ -13,6 +13,7 @@ from fs.zipfs import ZipFS
 from mh_operator.core.config import settings
 from mh_operator.core.mcp_client import analysis_examples, zip_and_upload
 from mh_operator.core.mcp_server import extract_files_to_temp
+from mh_operator.routines.analysis_samples import merge_uaf_tables
 from mh_operator.utils.common import logger, set_logger_level
 
 set_logger_level("DEBUG")
@@ -74,12 +75,33 @@ def test_analysis_examples():
         copy_fs(ZipFS(str(test_d)), open_fs(tmpdir))
         logger.debug(f"Extracted {test_d} into {tmpdir}")
         tests = list(Path(tmpdir).glob("*/*.D"))[:5]
-        for test, result in zip(
+
+        for test, text_result, raw_result in zip(
             tests,
             analysis_examples(
                 tests,
                 mcp_server_url=settings.mcp_server_url or "http://127.0.0.1:3000",
                 batch=2,
+                raw=False,
+            ),
+            analysis_examples(
+                tests,
+                mcp_server_url=settings.mcp_server_url or "http://127.0.0.1:3000",
+                batch=2,
+                raw=True,
             ),
         ):
-            test_d.with_name(test.name + ".json").write_text(result)
+            test_d.with_name(test.name + ".txt").write_text(text_result)
+            test_d.with_name(test.name + ".json").write_text(raw_result)
+
+        db = test_d.with_suffix(".db")
+        db.unlink(missing_ok=True)
+        res = merge_uaf_tables(
+            *[
+                json.loads(test_d.with_name(t.name + ".json").read_text())
+                for t in tests
+            ],
+            tmp_db=db,
+            b64decode=True,
+        )
+        logger.debug(res)

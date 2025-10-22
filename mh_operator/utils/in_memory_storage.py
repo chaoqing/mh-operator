@@ -66,7 +66,7 @@ class InMemoryStorage(StorageBackend):
             getsizeof=lambda value: value.size,
         )
 
-    def create_unique_key(self, path: str) -> str:
+    def create_unique_key(self, path: str | Path) -> str:
         """give one path a unique key"""
         path = Path(path)
 

@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mh-operator"
-version = "0.1.6"
+version = "0.1.7"
 description = "Awesome `mh-operator` provide interfaces and common routines for the Agilent MassHunter official SDK."
 readme = "README.md"
 license = "MIT"
@@ -41,6 +41,9 @@ mcp = [
   "fs>=2.4.16",
   "cachetools>=6.2.0",
   "asyncer>=0.0.9",
+]
+local-mcp = [
+    "rainbow-api>=1.0.10",
 ]
 dev = [
   "aioftp>=0.27.2",

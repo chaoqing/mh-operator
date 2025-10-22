@@ -2,3 +2,4 @@ UnknownsReports/
 UnknownsResults/
 methods/
 *.D.json
+*.db

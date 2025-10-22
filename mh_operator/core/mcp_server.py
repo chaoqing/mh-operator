@@ -20,7 +20,7 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 
-from ..routines.analysis_samples import SampleInfo, analysis_samples
+from ..routines.analysis_samples import SampleInfo, analysis_samples, merge_uaf_tables
 from ..routines.extract_uaf import extract_mass_hunter_analysis_file
 from ..utils.common import SingletonABCMeta, logger
 from ..utils.in_memory_storage import (
@@ -147,13 +147,13 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
         uri: Annotated[
             str,
             Field(
-                description=f"The Mass Hunter tests (.D) to analysis, support `osfs://` for os local files(by default if no URL protocal specified), `s3fs://` for S3 service, `mem://` for inmemory storage",
+                description=f"The Mass Hunter tests (.D) to analysis, support `osfs://` for os local files(by default if no URL protocol specified), `s3fs://` for S3 service, `mem://` for inmemory storage",
             ),
         ],
         raw: Annotated[
             bool,
             Field(
-                description="Return the result resource if set to be raw, otherwise the processed all compounds information in json format"
+                description="Return the result full json resource URI if set to be raw, otherwise the processed all compounds information in natural language"
             ),
         ] = False,
     ) -> Annotated[
@@ -195,8 +195,27 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
             if raw:
                 return f"resource://report/{resource_key}"
             else:
-                # TODO: do the post processing
-                return res.read_text()
+                (uaf,) = merge_uaf_tables(json.loads(res.read_text()))
+
+                components = "\n".join(
+                    (
+                        f"- Detected '{c['CompoundName']}' (CAS: '{c['CASNumber']}', Formula: '{c['Formula']}')"
+                        f" around retention time {c['RetentionTime']:.2f}min"
+                        f" with library match score {c['LibraryMatchScore']:.2f}%,"
+                        f" estimated concentration to be {round(c['EstimatedConcentration'], 2) if c['EstimatedConcentration'] else 'Unknown'}."
+                    )
+                    for c in uaf["Components"]
+                )
+
+                return (
+                    f"-- Sample '{uaf['SampleName'] or 'Unknown'}' "
+                    f"acquired at {uaf['AcqDateTime']} "
+                    f"with instrument {uaf['InstrumentName']} "
+                    f"by {uaf['AcqOperator'] or 'anonymous'} --"
+                    f"\n{uaf['Comment']}"
+                    f"\nList of detected components:\n"
+                    f"{components}\n"
+                )
 
     if file_service:
         attach_file_service(mcp, storage)

@@ -144,7 +144,7 @@ class MCPClient:
         (res,) = response.content
         return res
 
-    async def analysis_sample(self, test_D: Path) -> str:
+    async def analysis_sample(self, test_D: Path, raw=True) -> str:
         response_bytes = zip_and_upload(
             test_D, f"{self.server_url}/file/{test_D.name}.zip"
         )
@@ -154,11 +154,13 @@ class MCPClient:
         res = await self.call_tool(
             "analysis_sample",
             uri=res["uri"],
-            raw=True,
+            raw=raw,
         )
-        uaf_json_key = res.text
-        logger.debug(f"remote analysis_sample complete with {uaf_json_key}")
-        return await self.get_resource(uaf_json_key)
+        logger.debug(f"remote analysis_sample complete with {res.text}")
+        if raw:
+            return await self.get_resource(res.text)
+        else:
+            return res.text
 
     async def show_resources(self):
         response: types.ListResourcesResult = await self.session.list_resources()
@@ -201,7 +203,10 @@ class MCPClient:
 
 
 def analysis_examples(
-    samples: Iterable[Path], mcp_server_url: str | None = None, batch=5
+    samples: Iterable[Path],
+    mcp_server_url: str | None = None,
+    batch: int = 5,
+    raw: bool = True,
 ):
     async def main():
         client = MCPClient(mcp_server_url=mcp_server_url)
@@ -212,7 +217,7 @@ def analysis_examples(
             for sample_batch in batched(samples, batch):
                 results.extend(
                     await asyncio.gather(
-                        *[client.analysis_sample(s) for s in sample_batch]
+                        *[client.analysis_sample(s, raw=raw) for s in sample_batch]
                     )
                 )
             return results

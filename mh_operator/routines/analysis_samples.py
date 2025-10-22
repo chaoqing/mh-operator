@@ -1,10 +1,14 @@
 # type: ignore[attr-defined]
-from typing import Annotated, List, Optional
+from typing import Annotated, Any, Dict, List, Optional
 
+import base64
+import json
 import os
+import sqlite3
 from ast import literal_eval
 from enum import Enum
-from functools import cached_property
+from functools import cached_property, partial
+from itertools import chain, cycle
 from pathlib import Path
 
 from pydantic import Field
@@ -210,3 +214,208 @@ def analysis_samples(
     except (SyntaxError, AssertionError) as e:
         logger.info(f"UAC return stdout:\n {stdout}")
         raise RuntimeError(f"Failed to exec code '{commands}': {e}")
+
+
+UAF_JSON_MERGE_SQL_COMMAND = """
+WITH
+    -- 1. Aggregate Ion Peaks for each Component
+    ion_peaks_agg AS (SELECT BatchID,
+                             SampleID,
+                             DeconvolutionMethodID,
+                             ComponentID,
+                             JSON_GROUP_ARRAY(
+                                     JSON_OBJECT(
+                                             'MZ', MZ,
+                                             'Area', Area,
+                                             'Height', Height,
+                                             'RetentionTime', RetentionTime,
+                                             'StartX', StartX,
+                                             'EndX', EndX,
+                                             'Symmetry', Symmetry,
+                                             'FullWidthHalfMaximum', FullWidthHalfMaximum,
+                                             'IonPolarity', IonPolarity,
+                                             'Sharpness', Sharpness,
+                                             'SignalToNoiseRatio', SignalToNoiseRatio,
+                                             'B64Encoded_RetentionTimeSeries', XArray,
+                                             'B64Encoded_RetentionTimeAbundances', YArray
+                                     ) -- ORDER BY MZ
+                             ) AS peaks_json
+                      FROM (SELECT * FROM IonPeak ORDER BY MZ)
+                      GROUP BY BatchID,
+                               SampleID,
+                               DeconvolutionMethodID,
+                               ComponentID),
+
+    -- 2. Aggregate Library Search Hits (Candidates) for each Component
+    hit_agg AS (SELECT BatchID,
+                       SampleID,
+                       DeconvolutionMethodID,
+                       ComponentID,
+                       JSON_GROUP_ARRAY(
+                               JSON_OBJECT(
+                                       'HitID', HitID,
+                                       'LibraryEntryID', LibraryEntryID,
+                                       'LibraryMatchScore', LibraryMatchScore,
+                                       'LibraryCompoundDescription', LibraryCompoundDescription,
+                                       'CompoundName', CompoundName,
+                                       'EstimatedConcentration', EstimatedConcentration,
+                                       'CASNumber', CASNumber,
+                                       'Formula', Formula,
+                                       'MolecularWeight', MolecularWeight
+                               ) -- ORDER BY LibraryMatchScore DESC
+                       ) AS candidates_json
+                FROM (SELECT * FROM Hit ORDER BY LibraryMatchScore DESC)
+                GROUP BY BatchID,
+                         SampleID,
+                         DeconvolutionMethodID,
+                         ComponentID),
+
+    -- 3. Build Component JSON objects, joining aggregated peaks and hits,
+    --    AND joining again to get the Primary Hit's details
+    component_json AS (SELECT c.BatchID,
+                              c.SampleID,
+                              c.RetentionTime,
+                              JSON_OBJECT(
+                                      'RetentionTime', c.RetentionTime,
+                                      'StartX', c.StartX,
+                                      'EndX', c.EndX,
+                                      'ShapeQuality', c.ShapeQuality,
+                                      'IsAccurateMass', c.IsAccurateMass,
+                                      'Area', c.Area,
+                                      'Height', c.Height,
+                                      'LibraryEntryID', COALESCE(primary_hit.LibraryEntryID, NULL),
+                                      'CompoundName', COALESCE(primary_hit.CompoundName, 'Unknown'),
+                                      'CASNumber', COALESCE(primary_hit.CASNumber, 'N/A'),
+                                      'Formula', COALESCE(primary_hit.Formula, 'N/A'),
+                                      'LibraryMatchScore', COALESCE(primary_hit.LibraryMatchScore, NULL),
+                                      'EstimatedConcentration', COALESCE(primary_hit.EstimatedConcentration, NULL),
+                                      'LibraryCompoundDescription', COALESCE(primary_hit.LibraryCompoundDescription, ''),
+                                      'IsManuallyIntegrated', c.IsManuallyIntegrated,
+                                      'B64Encoded_RetentionTimeSeries', c.XArray,
+                                      'B64Encoded_RetentionTimeAbundances', c.YArray,
+                                      'B64Encoded_SpectrumMZs', c.SpectrumMZs,
+                                      'B64Encoded_SpectrumAbundances', c.SpectrumAbundances,
+                                      -- Use COALESCE with JSON() to handle potential NULLs from LEFT JOIN and ensure valid JSON array
+                                      'LibraryCandidates', COALESCE(JSON(ha.candidates_json), JSON_ARRAY()),
+                                      'IonPeaks', COALESCE(JSON(ipa.peaks_json), JSON_ARRAY())
+                              ) AS component_data
+                       FROM Component c
+                                LEFT JOIN Hit primary_hit -- Join specifically to get the primary hit details
+                                          ON c.BatchID = primary_hit.BatchID
+                                              AND c.SampleID = primary_hit.SampleID
+                                              AND c.DeconvolutionMethodID = primary_hit.DeconvolutionMethodID
+                                              AND c.ComponentID = primary_hit.ComponentID
+                                              AND c.PrimaryHitID = primary_hit.HitID -- Link via PrimaryHitID
+                                LEFT JOIN hit_agg ha -- Join pre-aggregated hits
+                                          ON c.BatchID = ha.BatchID
+                                              AND c.SampleID = ha.SampleID
+                                              AND c.DeconvolutionMethodID = ha.DeconvolutionMethodID
+                                              AND c.ComponentID = ha.ComponentID
+                                LEFT JOIN ion_peaks_agg ipa -- Join pre-aggregated ion peaks
+                                          ON c.BatchID = ipa.BatchID
+                                              AND c.SampleID = ipa.SampleID
+                                              AND c.DeconvolutionMethodID = ipa.DeconvolutionMethodID
+                                              AND c.ComponentID = ipa.ComponentID
+                       WHERE c.BestHit = 1),
+
+    -- 4. Aggregate all Component JSON objects for each Sample
+    sample_components_agg AS (SELECT BatchID,
+                                     SampleID,
+                                     JSON_GROUP_ARRAY(component_data -- ORDER BY JSON_EXTRACT(component_data, '$.RetentionTime')
+                                     ) AS components_json
+                              FROM (SELECT * FROM component_json ORDER BY RetentionTime)
+                              GROUP BY BatchID,
+                                       SampleID)
+
+-- 5. Final Select: Combine Sample info with aggregated Components array
+SELECT JSON_OBJECT(
+                   'BatchID', s.BatchID,
+                   'SampleID', s.SampleID,
+                   'SampleName', s.SampleName,
+                   'AcqDateTime', s.AcqDateTime,
+                   'DataFileName', s.DataFileName,
+                   'AcqMethodFileName', s.AcqMethodFileName,
+                   'AcqOperator', s.AcqOperator,
+                   'Comment', s.Comment,
+                   'Dilution', s.Dilution,
+                   'InstrumentName', s.InstrumentName,
+                   'PlateCode', s.PlateCode,
+                   'PlatePosition', s.PlatePosition,
+                   'RackCode', s.RackCode,
+                   'RackPosition', s.RackPosition,
+                   'SamplePosition', s.SamplePosition,
+                   'SampleType', s.SampleType,
+                   'TuneFileName', s.TuneFileName,
+                   'TuneFileLastTimeStamp', s.TuneFileLastTimeStamp,
+                   'JSONEncoded_Components', COALESCE(JSON(sca.components_json), JSON_ARRAY())
+           ) AS JSONEncoded
+FROM Sample s
+         LEFT JOIN sample_components_agg sca
+                   ON s.BatchID = sca.BatchID
+                       AND s.SampleID = sca.SampleID
+;"""
+
+
+def recursive_decoding(dct: Dict[str, Any], b64decode=True) -> Dict[str, Any]:
+    """
+    An object_hook for json.loads that handles B64Encoded_* and JSONEncoded_* keys.
+    """
+    processed_dct = {}
+
+    for key, value in dct.items():
+        # --- Handle Base64 Encoded Fields ---
+        if b64decode and key.startswith("B64Encoded_"):
+            import numpy as np
+
+            processed_dct[key[len("B64Encoded_") :]] = np.frombuffer(
+                base64.b64decode(value), dtype=np.float64
+            ).tolist()
+        # --- Handle JSON Encoded Fields ---
+        elif key.startswith("JSONEncoded_"):
+            processed_dct[key[len("JSONEncoded_") :]] = [
+                json.loads(
+                    v, object_hook=partial(recursive_decoding, b64decode=b64decode)
+                )
+                for v in value
+            ]
+        else:
+            processed_dct[key] = value
+
+    return processed_dct
+
+
+def merge_uaf_tables(
+    uaf_json: dict,
+    *more_uaf_jsons,
+    tmp_db: str | Path = ":memory:",
+    b64decode: bool = False,
+) -> list:
+    """merge the raw exported uaf_json_path into one"""
+    tables_iter = chain.from_iterable(
+        zip(cycle([batch]), j.items())
+        for batch, j in enumerate([uaf_json, *more_uaf_jsons])
+    )
+    with sqlite3.connect(tmp_db) as conn:
+
+        for batch, (table_name, contents) in tables_iter:
+            if not contents:
+                continue
+            try:
+                import pandas as pd
+
+                table = pd.DataFrame(contents)  # dropna(axis="columns", how="all")
+                import numpy as np
+
+                assert "BatchID" not in table or np.all(table["BatchID"] == 0)
+                table["BatchID"] = batch
+
+                table.to_sql(table_name, conn, index=False, if_exists="append")
+            except ImportError:
+                raise NotImplementedError(
+                    "merging without database support is pending development"
+                )
+
+        return [
+            json.loads(r, object_hook=partial(recursive_decoding, b64decode=b64decode))
+            for r, in conn.cursor().execute(UAF_JSON_MERGE_SQL_COMMAND).fetchall()
+        ]

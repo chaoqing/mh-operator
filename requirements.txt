@@ -14,14 +14,17 @@ charset-normalizer==3.4.3
 click==8.2.1
 colorama==0.4.6
 commonmark==0.9.1
+contourpy==1.3.2
 coverage==6.5.0
 coverage-badge==1.1.2
+cycler==0.12.1
 darglint==1.8.1
 dill==0.4.0
 distlib==0.4.0
 dparse==0.6.4
 exceptiongroup==1.3.0
 filelock==3.19.1
+fonttools==4.60.1
 fs==2.4.16
 h11==0.16.0
 httpcore==1.0.9
@@ -33,7 +36,10 @@ iniconfig==2.1.0
 isort==5.13.2
 jsonschema==4.25.1
 jsonschema-specifications==2025.9.1
+kiwisolver==1.4.9
 lazy-object-proxy==1.12.0
+lxml==6.0.2
+matplotlib==3.10.7
 mccabe==0.7.0
 mcp==1.14.0
 mypy==0.910
@@ -43,6 +49,7 @@ numpy==2.2.6
 packaging==25.0
 pandas==2.3.2
 pathspec==0.12.1
+pillow==12.0.0
 pip==25.2
 platformdirs==4.4.0
 pluggy==1.6.0
@@ -54,6 +61,7 @@ pydantic-settings==2.10.1
 pydocstyle==6.3.0
 pygments==2.19.2
 pylint==2.17.7
+pyparsing==3.2.5
 pytest==6.2.5
 pytest-cov==3.0.0
 pytest-html==3.2.0
@@ -64,6 +72,7 @@ python-multipart==0.0.20
 pytz==2025.2
 pyupgrade==2.38.4
 pyyaml==6.0.2
+rainbow-api==1.0.10
 referencing==0.36.2
 requests==2.32.5
 rich==10.16.2
