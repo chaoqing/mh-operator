@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mh-operator"
-version = "0.1.7"
+version = "0.1.8"
 description = "Awesome `mh-operator` provide interfaces and common routines for the Agilent MassHunter official SDK."
 readme = "README.md"
 license = "MIT"
@@ -38,7 +38,6 @@ dependencies = [
 [project.optional-dependencies]
 mcp = [
   "mcp[cli]>=1.2.0",
-  "fs>=2.4.16",
   "cachetools>=6.2.0",
   "asyncer>=0.0.9",
 ]
@@ -46,6 +45,7 @@ local-mcp = [
     "rainbow-api>=1.0.10",
 ]
 dev = [
+  "fsspec[libarchive,http,s3]>=2025.9.0",
   "aioftp>=0.27.2",
   "bandit>=1.7.1,<2.0.0",
   "black>=24.4.0,<25.0.0",
@@ -66,7 +66,6 @@ dev = [
   "pytest-cov>=3.0.0,<4.0.0",
   "pip>=25.1",
   "xlsxwriter>=3.2.3",
-  "smart-open>=7.3.1",
 ]
 
 [project.urls]
@@ -160,9 +159,3 @@ source = ["mh_operator", "*/site-packages"]
 [tool.coverage.report]
 fail_under = 0
 show_missing = true
-
-[dependency-groups]
-dev = [
-    "fs-s3fs>=1.1.1",
-    "fs-webdavfs>=0.4.3.1",
-]

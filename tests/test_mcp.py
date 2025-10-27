@@ -4,11 +4,9 @@ import os
 from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from urllib.parse import urlparse
 
 import pytest
-from fs.copy import copy_fs
-from fs.opener import open_fs
-from fs.zipfs import ZipFS
 
 from mh_operator.core.config import settings
 from mh_operator.core.mcp_client import analysis_examples, zip_and_upload
@@ -24,40 +22,71 @@ set_logger_level("DEBUG")
     reason="not run until CI launched the server",
 )
 def test_fs():
-    http_uri = settings.mcp_server_url or "http://127.0.0.1:3000"
+    http_uri = (settings.mcp_server_url or "http://127.0.0.1:3000/") + "/file/"
     logger.debug(f"Using MCP server at {http_uri}")
 
-    res = zip_and_upload(Path(__file__).parent, f"{http_uri}/file/tests.zip")
+    # Test case 1: upload to mcp http
+    res = zip_and_upload(Path(__file__).parent, f"{http_uri}/tests.zip")
     logger.debug(f"Upload result: {res}")
-    assert res.startswith(b'{"status":"ok","uri":"resource://sample/')
-
-    import fs.opener
-    from fs import open_fs
+    assert res.startswith("resource://sample/")
 
     ftp_uri = settings.ftp_uri or "ftp://mh:operator@127.0.0.1:3021/"
     logger.debug(f"Using FTP server at {ftp_uri}")
 
-    fs = open_fs(ftp_uri)
+    import fsspec
+    import httpx
 
-    with fs.open("Sample.zip", "wb") as fp:
-        zip_file = BytesIO()
+    ftp_fs, _ = fsspec.url_to_fs(ftp_uri)
+
+    # Test case 2: upload to ftp server with zip
+    with ftp_fs.open("Sample.zip", "wb") as fp:
         from zipfile import ZipFile
 
-        with ZipFile(zip_file, "w") as zip_fp:
+        with ZipFile(fp, "w") as zip_fp:
             zip_fp.writestr("Sample01.D/data.ms", "this is ms data")
 
-        fp.write(zip_file.getvalue())
-
-    fs.makedirs("Sample/Sample02.D/", recreate=True)
-    with fs.open("Sample/Sample02.D/data.ms", "w") as fp:
+    # Test case 3: upload to ftp server with folder
+    ftp_fs.makedirs("Sample/Sample02.D/", exist_ok=True)
+    with fsspec.open(f"{ftp_uri}/Sample/Sample02.D/data.ms", "w") as fp:
         fp.writelines(["this is\n", "ms data"])
 
+    # Test case 4: download from ftp zip
     with TemporaryDirectory() as tmpdir:
         (sample,) = extract_files_to_temp(ftp_uri + "Sample.zip", tmpdir)
         logger.info(f"Extracting zip to {sample}")
         logger.info((sample / "data.ms").read_text())
+
+    # Test case 5: download from ftp folder
     with TemporaryDirectory() as tmpdir:
         (sample,) = extract_files_to_temp(ftp_uri + "Sample", tmpdir)
+        logger.info(f"Extracting folder to {sample}")
+        logger.info((sample / "data.ms").read_text())
+
+        with ftp_fs.open("tests.tar", "wb") as fp:
+            from tarfile import TarFile
+
+            with TarFile(mode="w", fileobj=fp) as tar_fp:
+                tar_fp.add(sample, arcname="Sample_tar.D")
+
+    # Test case 6: upload to mcp http tar
+    with fsspec.open(f"{ftp_uri}/tests.tar", "rb") as tar_bytes:
+        res = httpx.put(
+            f"{http_uri}/sample_tar.tar",
+            content=tar_bytes.read(),
+            follow_redirects=True,
+        )
+        res.raise_for_status()
+        logger.debug(f"Upload result: {res.text}")
+        parsed_tar_url = urlparse(res.text)
+        if parsed_tar_url.scheme == "resource":
+            tar_url = f"{http_uri}{Path(parsed_tar_url.path).name}"
+        else:
+            tar_url = f"{http_uri}/{parsed_tar_url.path}"
+
+    # Test case 7: download from mcp http tar
+    with TemporaryDirectory() as tmpdir:
+        logger.debug(f"Download result from {tar_url}")
+        (sample,) = extract_files_to_temp(tar_url, temp_dir=tmpdir)
         logger.info(f"Extracting folder to {sample}")
         logger.info((sample / "data.ms").read_text())
 
@@ -71,8 +100,10 @@ def test_analysis_examples():
         Path(__file__).with_name("data")
         / "NIST Public Data Repository (Rapid GC-MS of Seized Drugs).zip"
     )
+    import fsspec
+
     with TemporaryDirectory() as tmpdir:
-        copy_fs(ZipFS(str(test_d)), open_fs(tmpdir))
+        fsspec.copy(str(test_d), tmpdir, recursive=True)
         logger.debug(f"Extracted {test_d} into {tmpdir}")
         tests = list(Path(tmpdir).glob("*/*.D"))[:5]
 

@@ -33,24 +33,36 @@ from ..utils.common import logger
 from .config import settings
 
 
-def zip_and_upload(dir_path: Path, target_url: str) -> bytes:
-    assert urlparse(target_url).scheme in ("http", "https")
-    with BytesIO() as fp:
-        parent_path = dir_path / ".."
-        with ZipFile(fp, "w") as zip_fp:
-            for root, dirs, files in os.walk(dir_path):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    zip_fp.write(file_path, os.path.relpath(file_path, parent_path))
+def zip_and_upload(dir_path: Path, target_url: str) -> str:
+    parsed_url = urlparse(target_url)
+    assert Path(parsed_url.path).suffix.lower() == ".zip"
+    try:
+        if parsed_url.scheme in ("http", "https"):
+            raise TypeError("inline http/https upload not supported in fsspec")
+        import fsspec
 
-        data_bytes = fp.getvalue()
-    resp = httpx.put(
-        target_url,
-        content=data_bytes,
-        headers={"Content-Type": "application/octet-stream"},
-    )
-    resp.raise_for_status()
-    return resp.content
+        bytes_io = fsspec.open(target_url, "wb")
+    except (ImportError, TypeError):
+        bytes_io = BytesIO()
+
+    parent_path = dir_path / ".."
+    with ZipFile(bytes_io, "w") as zip_fp:
+        for root, _, files in os.walk(dir_path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                zip_fp.write(file_path, os.path.relpath(file_path, parent_path))
+
+    if isinstance(bytes_io, BytesIO):
+        resp = httpx.put(
+            target_url,
+            content=bytes_io.getvalue(),
+            headers={"Content-Type": "application/octet-stream"},
+        )
+        resp.raise_for_status()
+        # We assume the http server will return the uploaded file URI in the response content
+        return resp.text or target_url
+    else:
+        return target_url
 
 
 def create_uploader_mcp_server() -> FastMCP:
@@ -76,13 +88,7 @@ def create_uploader_mcp_server() -> FastMCP:
     ]:
         """Compress the Agilent GCMS test.D files into zip and upload to"""
         test_dir = Path(test_path)
-        response_bytes = zip_and_upload(
-            test_dir, f"{endpoint}/file/{test_dir.name}.zip"
-        )
-        res = json.loads(response_bytes.decode())
-        assert res["status"] == "ok"
-
-        return f"{endpoint}/file/{res['key']}"
+        return zip_and_upload(test_dir, f"{endpoint}/file/{test_dir.name}.zip")
 
     return mcp
 

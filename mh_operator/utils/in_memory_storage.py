@@ -1,11 +1,10 @@
-from typing import Any, Dict, Optional
+from typing import Any
 
 import hashlib
 import threading
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from datetime import datetime
-from functools import cached_property
 from io import BytesIO
 from pathlib import Path
 
@@ -13,7 +12,7 @@ from cachetools import TTLCache
 from pydantic import Field
 from pydantic.dataclasses import dataclass
 
-from mh_operator.utils.common import BaseSingletonMeta, SingletonABCMeta
+from mh_operator.utils.common import BaseSingletonMeta
 
 
 async def async_read_bytes(path: Path, chunk: int = -1) -> AsyncGenerator[bytes, None]:
@@ -128,6 +127,7 @@ class InMemoryStorage(StorageBackend):
 
 
 class InMemoryStorageSingleton(InMemoryStorage, metaclass=BaseSingletonMeta):
-    def __init__(self, *_, **__):
+    def __init__(self, _: type, *__, **___):
         """this should never be called because the BaseSingletonMeta.__call__ handle the creation"""
+        super().__init__()
         assert False

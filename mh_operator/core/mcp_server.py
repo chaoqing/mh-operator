@@ -5,20 +5,22 @@ import json
 from functools import cache
 from io import BytesIO
 from pathlib import Path
+from tarfile import TarFile
 from tempfile import TemporaryDirectory
 from urllib.parse import urlparse
+from zipfile import ZipFile
 
-import fs.opener
 from asyncer import asyncify
-from fs import open_fs
-from fs.copy import copy_fs
-from fs.tarfs import TarFS
-from fs.zipfs import ZipFS
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response, StreamingResponse
+from starlette.responses import (
+    JSONResponse,
+    PlainTextResponse,
+    Response,
+    StreamingResponse,
+)
 
 from ..routines.analysis_samples import SampleInfo, analysis_samples, merge_uaf_tables
 from ..routines.extract_uaf import extract_mass_hunter_analysis_file
@@ -31,23 +33,6 @@ from ..utils.in_memory_storage import (
 )
 from .config import settings
 
-try:
-    from fs_s3fs.opener import S3FSOpener
-
-    fs.opener.registry.install(S3FSOpener)
-except ImportError:
-    logger.warning(
-        "S3FS not found, run`pip install fs-s3fs` to enable 's3://' protocol"
-    )
-try:
-    from webdavfs.opener import WebDAVOpener
-
-    fs.opener.registry.install(WebDAVOpener)
-except ImportError:
-    logger.warning(
-        "WebDAV not found, run`pip install fs-webdavfs` to enable 'webdav://' protocol"
-    )
-
 
 def load_uri_bytes(uri: str) -> bytes:
     if uri.startswith("resource://sample/"):
@@ -58,29 +43,61 @@ def load_uri_bytes(uri: str) -> bytes:
         return InMemoryStorageSingleton().read_bytes(
             parsed_url.path.removeprefix("/file/")
         )
-    try:
-        from smart_open import open as smart_open
 
-        with smart_open(uri, "rb") as fp:
-            file_bytes = fp.read()
-    except ImportError:
-        raise NotImplementedError("we need to use fs to read the file contents")
+    from fsspec import open
 
-    return file_bytes
+    with open(uri, "rb") as fp:
+        return fp.read()
 
 
 def extract_files_to_temp(uri: str, temp_dir: str) -> list[Path]:
     parsed_url = urlparse(uri)
-    *_, suffix = parsed_url.path.rsplit(".", maxsplit=1)
 
-    if suffix in ("zip",):
-        src_fs = ZipFS(BytesIO(load_uri_bytes(uri)))
-    elif suffix in ("tar",):
-        src_fs = TarFS(BytesIO(load_uri_bytes(uri)))
+    suffix = Path(parsed_url.path).suffix
+
+    if suffix.lower() == ".zip":
+        with ZipFile(BytesIO(load_uri_bytes(uri))) as fp:
+            fp.extractall(temp_dir)
     else:
-        src_fs = open_fs(uri)
 
-    copy_fs(src_fs, temp_dir)
+        from fsspec import FSMap, get_mapper, url_to_fs
+
+        if parsed_url.scheme in ("http", "https"):
+            uri = "simplecache::" + uri
+        if suffix.lower() in (
+            ".7z",
+            ".gz",
+            ".tar",
+            ".tgz",
+            ".bz2",
+            ".tbz",
+            ".xz",
+            ".lzma",
+            ".tlz",
+            ".txz",
+            ".tbz2",
+            ".rar",
+            ".iso",
+        ):
+            uri = "libarchive::" + uri
+
+        src_fs, src_root = url_to_fs(uri)
+        src: FSMap = src_fs.get_mapper(src_root)
+        dst: FSMap = get_mapper(temp_dir)
+
+        from multiprocessing.pool import ThreadPool
+
+        with ThreadPool(32) as p:
+            n = sum(
+                (
+                    1
+                    for _ in p.imap_unordered(
+                        lambda k: dst.__setitem__(k, src[k]), src.keys()
+                    )
+                ),
+                0,
+            )
+            logger.debug(f"Copied {n} files from {uri} to {temp_dir}")
 
     return list(Path(temp_dir).glob("*.D"))
 
@@ -230,7 +247,7 @@ def attach_file_service(mcp: FastMCP, storage: InMemoryStorage) -> FastMCP:
         try:
             return StreamingResponse(storage.get(key))
         except FileNotFoundError:
-            return JSONResponse({"error": "Not Found"}, status_code=404)
+            return Response(status_code=404)
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
 
@@ -239,9 +256,7 @@ def attach_file_service(mcp: FastMCP, storage: InMemoryStorage) -> FastMCP:
         key = storage.create_unique_key(request.path_params["key"])
         try:
             await storage.put(key, request.stream())
-            return JSONResponse(
-                {"status": "ok", "uri": f"resource://sample/{key}"}, status_code=201
-            )
+            return PlainTextResponse(f"resource://sample/{key}", status_code=201)
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
 
@@ -261,7 +276,7 @@ def attach_file_service(mcp: FastMCP, storage: InMemoryStorage) -> FastMCP:
             headers = await storage.head(key)
             return Response(headers=headers)
         except FileNotFoundError:
-            return JSONResponse({"error": "Not Found"}, status_code=404)
+            return Response(status_code=404)
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
 
