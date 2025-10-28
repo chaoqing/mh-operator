@@ -83,8 +83,10 @@ def create_uploader_mcp_server(default_endpoint: str = None) -> FastMCP:
             Field(
                 description="The URI endpoint where the zipped test.D file will be uploaded.",
             ),
-        ] = (default_endpoint or settings.mcp_server_url or "http://127.0.0.1:3000")
-        + "/file",
+        ] = (
+            default_endpoint
+            or ((settings.mcp_server_url or "http://127.0.0.1:3000") + "/file")
+        ),
     ) -> Annotated[
         str,
         Field(

@@ -185,11 +185,17 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
             description="The URI of the raw JSON resource (if `raw` is true) or a natural language summary of the analysis (if `raw` is false)."
         ),
     ]:
-        f"""Analyzes a MassHunter sample (.D) from a given URI, processes it, and returns either a raw JSON resource URI or a human-readable summary.
-        
+        """Analyzes a MassHunter sample (.D) from a given URI, processes it, and returns either a raw JSON resource URI or a human-readable summary.
+
         The local file path on MCP client OS is generally not accessiable to this tool (usual case user asks to analysis `/path/to/test.D`).
-        Then you should at first use MCP tool like `upload_test_zip` to pack and upload the it into third-party storage or this in-memory storage "{settings.mcp_server_url}/file" first and then call this tool with returned URI. 
+        You can use MCP tool like `upload_test_zip` to pack and upload the it into third-party storage or this MCP provided in-memory storage.
+        So when user ask to analysis files without specify the schema (includeing no `file://` case), you should upload first and then call this tool with the resource URI.
+
         The sample is first extracted/copied to a temporary directory, then analyzed using MassHunter, and the results are stored.
+        The MassHunter processing can take minutes to analyze one test.D, so be patient. Fortunately, this tool support simultaneous analysis requests.
+
+        When user do not clearly state whether they want raw JSON or a summary, you should not set the raw option and this tool will take proper default action.
+        If you got a `resource://report/` URI back, you should read the resource (a full json string) from this MCP server and do the next steps as user asked.
         """
         logger.debug(f"got request to analysis {uri}")
         with TemporaryDirectory() as tmpdir:
