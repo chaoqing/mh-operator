@@ -158,12 +158,19 @@ def mcp_server(
 
 
 @app.command(name="uploader-mcp")
-def mcp_client():
+def mcp_client(
+    endpoint: Annotated[
+        str | None,
+        typer.Option(
+            help="The remote storage endpoint",
+        ),
+    ] = None,
+):
     """Serve the Uploader MCP to help upload test.D to the MCP server"""
     try:
         from mh_operator.core.mcp_client import create_uploader_mcp_server
 
-        mcp = create_uploader_mcp_server()
+        mcp = create_uploader_mcp_server(endpoint)
         mcp.run()
 
     except ImportError:

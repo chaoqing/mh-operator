@@ -5,6 +5,7 @@ from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import urlparse
+from zipfile import ZipFile
 
 import pytest
 
@@ -22,11 +23,13 @@ set_logger_level("DEBUG")
     reason="not run until CI launched the server",
 )
 def test_fs():
-    http_uri = (settings.mcp_server_url or "http://127.0.0.1:3000/") + "/file/"
+    http_uri = (settings.mcp_server_url or "http://127.0.0.1:3000") + "/file"
     logger.debug(f"Using MCP server at {http_uri}")
 
     # Test case 1: upload to mcp http
-    res = zip_and_upload(Path(__file__).parent, f"{http_uri}/tests.zip")
+    res = zip_and_upload(
+        Path(__file__).with_name("__pycache__"), f"{http_uri}/tests.zip"
+    )
     logger.debug(f"Upload result: {res}")
     assert res.startswith("resource://sample/")
 
@@ -40,8 +43,6 @@ def test_fs():
 
     # Test case 2: upload to ftp server with zip
     with ftp_fs.open("Sample.zip", "wb") as fp:
-        from zipfile import ZipFile
-
         with ZipFile(fp, "w") as zip_fp:
             zip_fp.writestr("Sample01.D/data.ms", "this is ms data")
 
@@ -79,7 +80,7 @@ def test_fs():
         logger.debug(f"Upload result: {res.text}")
         parsed_tar_url = urlparse(res.text)
         if parsed_tar_url.scheme == "resource":
-            tar_url = f"{http_uri}{Path(parsed_tar_url.path).name}"
+            tar_url = f"{http_uri}/{Path(parsed_tar_url.path).name}"
         else:
             tar_url = f"{http_uri}/{parsed_tar_url.path}"
 
@@ -103,8 +104,9 @@ def test_analysis_examples():
     import fsspec
 
     with TemporaryDirectory() as tmpdir:
-        fsspec.copy(str(test_d), tmpdir, recursive=True)
-        logger.debug(f"Extracted {test_d} into {tmpdir}")
+        with ZipFile(test_d, "r") as zip_fp:
+            zip_fp.extractall(tmpdir)
+            logger.debug(f"Extracted {test_d} into {tmpdir}")
         tests = list(Path(tmpdir).glob("*/*.D"))[:5]
 
         for test, text_result, raw_result in zip(

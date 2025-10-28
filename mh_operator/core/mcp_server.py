@@ -145,16 +145,19 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
         uaf: Annotated[
             str,
             Field(
-                description="The Mass Hunter analysis file (.uaf)",
+                description="The URI of the MassHunter analysis file (.uaf) to be read. This can be a local file path or a resource URI.",
             ),
         ],
     ) -> Annotated[
         str,
         Field(
-            description="The dumped json string of the data contained inside the uaf file"
+            description="A JSON string representing the extracted and processed data from the .uaf file."
         ),
     ]:
-        """Read the Mass Hunter analysis result from its project file(.uaf)"""
+        """Reads a MassHunter analysis file (.uaf) and extracts its contents into a structured JSON format.
+
+        The .uaf file is processed to extract relevant analysis results, which are then returned as a JSON string.
+        """
         return await asyncify(extract_mass_hunter_analysis_file)(
             Path(uaf), mh_bin_path=settings.mh_bin_path, processed=True
         )
@@ -164,22 +167,30 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
         uri: Annotated[
             str,
             Field(
-                description=f"The Mass Hunter tests (.D) to analysis, support `osfs://` for os local files(by default if no URL protocol specified), `s3fs://` for S3 service, `mem://` for inmemory storage",
+                description=(
+                    "The full URI of the MassHunter test (.D) to analyze. Zipped test (.D.zip) will be unzipped automatically. Scheme must be set accordingly. "
+                    "Supports `resource://` and `file://` for in-memory storage and OS files on the remote server where this MCP is hosted respectively, and other general URI like `https://`, `ftp://` and `s3://`(for S3 service). "
+                ),
             ),
         ],
         raw: Annotated[
             bool,
             Field(
-                description="Return the result full json resource URI if set to be raw, otherwise the processed all compounds information in natural language"
+                description="If true, returns the URI of the raw JSON resource generated from the UAF file. If false, returns a human-readable summary of the detected compounds."
             ),
         ] = False,
     ) -> Annotated[
         str,
         Field(
-            description="The exported json (raw resource or processed) of the generated UAF file"
+            description="The URI of the raw JSON resource (if `raw` is true) or a natural language summary of the analysis (if `raw` is false)."
         ),
     ]:
-        """Analysis sample with Mass Hunter"""
+        f"""Analyzes a MassHunter sample (.D) from a given URI, processes it, and returns either a raw JSON resource URI or a human-readable summary.
+        
+        The local file path on MCP client OS is generally not accessiable to this tool (usual case user asks to analysis `/path/to/test.D`).
+        Then you should at first use MCP tool like `upload_test_zip` to pack and upload the it into third-party storage or this in-memory storage "{settings.mcp_server_url}/file" first and then call this tool with returned URI. 
+        The sample is first extracted/copied to a temporary directory, then analyzed using MassHunter, and the results are stored.
+        """
         logger.debug(f"got request to analysis {uri}")
         with TemporaryDirectory() as tmpdir:
             (sample,) = await asyncify(extract_files_to_temp)(uri, tmpdir)
@@ -195,6 +206,9 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
                 istd=settings.istd,
             )
             logger.debug(f"analysis {sample} result in {res}")
+            assert res.name.endswith(
+                ".uaf.json"
+            ), "Internal error: unexpected result file"
 
             resource_key = storage.create_unique_key(
                 Path(urlparse(uri).path).with_suffix(".json")
@@ -204,7 +218,7 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
             await asyncio.gather(
                 storage.put(
                     resource_key.removesuffix(".json") + ".uaf",
-                    async_read_bytes(res.with_suffix(".uaf")),
+                    async_read_bytes(res.with_suffix("")),
                 ),
                 storage.put(resource_key, async_read_bytes(res)),
             )

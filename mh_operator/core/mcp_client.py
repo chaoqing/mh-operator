@@ -46,26 +46,28 @@ def zip_and_upload(dir_path: Path, target_url: str) -> str:
         bytes_io = BytesIO()
 
     parent_path = dir_path / ".."
-    with ZipFile(bytes_io, "w") as zip_fp:
-        for root, _, files in os.walk(dir_path):
-            for file in files:
-                file_path = os.path.join(root, file)
-                zip_fp.write(file_path, os.path.relpath(file_path, parent_path))
+    with bytes_io as fp:
+        with ZipFile(fp, "w") as zip_fp:
+            for root, _, files in os.walk(dir_path):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    zip_fp.write(file_path, os.path.relpath(file_path, parent_path))
 
-    if isinstance(bytes_io, BytesIO):
-        resp = httpx.put(
-            target_url,
-            content=bytes_io.getvalue(),
-            headers={"Content-Type": "application/octet-stream"},
-        )
-        resp.raise_for_status()
-        # We assume the http server will return the uploaded file URI in the response content
-        return resp.text or target_url
-    else:
-        return target_url
+        if isinstance(bytes_io, BytesIO):
+            resp = httpx.put(
+                target_url,
+                content=fp.getvalue(),
+                headers={"Content-Type": "application/octet-stream"},
+                follow_redirects=True,
+            )
+            resp.raise_for_status()
+            # We assume the http server will return the uploaded file URI in the response content
+            return resp.text or target_url
+        else:
+            return target_url
 
 
-def create_uploader_mcp_server() -> FastMCP:
+def create_uploader_mcp_server(default_endpoint: str = None) -> FastMCP:
     mcp = FastMCP("test.D upload server")
 
     @mcp.tool()
@@ -73,22 +75,29 @@ def create_uploader_mcp_server() -> FastMCP:
         test_path: Annotated[
             str,
             Field(
-                description="The Agilent test.D path",
+                description="The path to the Agilent MassHunter test.D directory.",
             ),
         ],
         endpoint: Annotated[
             str,
             Field(
-                description="The uri where the zip files will be upload to",
+                description="The URI endpoint where the zipped test.D file will be uploaded.",
             ),
-        ] = settings.mcp_server_url,
+        ] = (default_endpoint or settings.mcp_server_url or "http://127.0.0.1:3000")
+        + "/file",
     ) -> Annotated[
         str,
-        Field(description="The URI of the zipped file returned by the endpoint"),
+        Field(
+            description="The URI of the uploaded zipped file, as returned by the endpoint."
+        ),
     ]:
-        """Compress the Agilent GCMS test.D files into zip and upload to"""
+        """Compresses an Agilent MassHunter test.D directory into a zip file and uploads it to a specified endpoint.
+
+        This tool facilitates the transfer of MassHunter test data by zipping the .D directory and uploading it,
+        returning the URI of the uploaded resource.
+        """
         test_dir = Path(test_path)
-        return zip_and_upload(test_dir, f"{endpoint}/file/{test_dir.name}.zip")
+        return zip_and_upload(test_dir, f"{endpoint}/{test_dir.name}.zip")
 
     return mcp
 
@@ -151,15 +160,11 @@ class MCPClient:
         return res
 
     async def analysis_sample(self, test_D: Path, raw=True) -> str:
-        response_bytes = zip_and_upload(
-            test_D, f"{self.server_url}/file/{test_D.name}.zip"
-        )
-        res = json.loads(response_bytes.decode())
-        logger.debug(f"test {test_D} uploaded to {self.server_url}")
-        assert res["status"] == "ok"
+        uri = zip_and_upload(test_D, f"{self.server_url}/file/{test_D.name}.zip")
+        logger.debug(f"test {test_D} uploaded to {self.server_url} with uri {uri}")
         res = await self.call_tool(
             "analysis_sample",
-            uri=res["uri"],
+            uri=uri,
             raw=raw,
         )
         logger.debug(f"remote analysis_sample complete with {res.text}")
