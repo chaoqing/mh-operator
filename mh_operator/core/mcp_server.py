@@ -189,7 +189,7 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
 
         The local file path on MCP client OS is generally not accessiable to this tool (usual case user asks to analysis `/path/to/test.D`).
         You can use MCP tool like `upload_test_zip` to pack and upload the it into third-party storage or this MCP provided in-memory storage.
-        So when user ask to analysis files without specify the schema (includeing no `file://` case), you should upload first and then call this tool with the resource URI.
+        **Important**: When user ask to analysis files without specify the schema (includeing no `file://` case), **always upload first** and then call this tool with the resource URI.
 
         The sample is first extracted/copied to a temporary directory, then analyzed using MassHunter, and the results are stored.
         The MassHunter processing can take minutes to analyze one test.D, so be patient. Fortunately, this tool support simultaneous analysis requests.
