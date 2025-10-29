@@ -13,7 +13,7 @@ from mh_operator.core.config import settings
 from mh_operator.core.mcp_client import analysis_examples, zip_and_upload
 from mh_operator.core.mcp_server import extract_files_to_temp
 from mh_operator.routines.analysis_samples import merge_uaf_tables
-from mh_operator.utils.common import logger, set_logger_level
+from mh_operator.utils.common import logger, map_concurrent, set_logger_level
 
 set_logger_level("DEBUG")
 
@@ -138,3 +138,55 @@ def test_analysis_examples():
             b64decode=True,
         )
         logger.debug(res)
+
+
+def test_map_concurrent():
+    import random
+    import time
+
+    # 1. Define an ASYNCHRONOUS function (simulates I/O)
+    @map_concurrent(max_concurrency=5)
+    async def f_async(v: int) -> str:
+        delay = random.uniform(0.1, 0.5)
+        await asyncio.sleep(delay)
+        if v == 3 or v == 7:
+            raise ValueError(f"Async value {v} failed")
+        return f"Async result {v}"
+
+    # 2. Define a SYNCHRONOUS function (simulates blocking CPU work)
+    @map_concurrent(max_concurrency=5)
+    def f_sync(v: int) -> str:
+        delay = random.uniform(0.1, 0.5)
+        time.sleep(delay)
+        if v == 2 or v == 8:
+            raise RuntimeError(f"Sync value {v} failed")
+        return f"Sync result {v}"
+
+    async def main():
+        my_list = list(range(10))[::-1]
+
+        print("--- Testing decorated ASYNC function ---")
+        async for ith_res, e_msg in f_async(my_list):
+            if e_msg is not None:
+                e, msg = e_msg
+                print(f"failed: {e} {msg}")
+            else:
+                print(f"success: {ith_res}")
+
+        print("\n" + "=" * 40 + "\n")
+
+        print("--- Testing decorated SYNC function ---")
+        async for ith_res, e_msg in f_sync(my_list):
+            if e_msg is not None:
+                e, msg = e_msg
+                print(f"failed: {e} {msg}")
+            else:
+                print(f"success: {ith_res}")
+
+    # Running the main async function
+    start_time = time.time()
+    asyncio.run(main())
+    end_time = time.time()
+    print(f"\nTotal execution time: {end_time - start_time:.2f} seconds")
+    # This total time should be much less than the sum of all delays,
+    # proving both sync and async versions ran concurrently.

@@ -29,7 +29,7 @@ from mcp.client.streamable_http import streamablehttp_client
 from mcp.server import FastMCP
 from pydantic import AnyUrl, Field
 
-from ..utils.common import logger
+from ..utils.common import logger, map_concurrent
 from .config import settings
 
 
@@ -157,7 +157,7 @@ class MCPClient:
         logger.debug(f"Call tool {tool} with args {kwargs}")
         response = await self.session.call_tool(tool, arguments=kwargs)
         logger.debug(f"Got response {response}")
-        assert not response.isError
+        assert not response.isError, response.content
         (res,) = response.content
         return res
 
@@ -223,16 +223,24 @@ def analysis_examples(
 ):
     async def main():
         client = MCPClient(mcp_server_url=mcp_server_url)
-        results = []
 
         try:
             await client.connect_to_server()
-            for sample_batch in batched(samples, batch):
-                results.extend(
-                    await asyncio.gather(
-                        *[client.analysis_sample(s, raw=raw) for s in sample_batch]
-                    )
-                )
+            results = []
+
+            @map_concurrent(batch)
+            async def _analysis_examples(s):
+                return await client.analysis_sample(s, raw=raw)
+
+            async for result, error in _analysis_examples(samples):
+                if error is not None:
+                    e, msg = error
+                    logger.error(f"Error processing sample: {msg}")
+                    results.append(
+                        "{}" if raw else f"Error encountered: {e}"
+                    )  # give an empty json string for errored samples
+                else:
+                    results.append(result)
             return results
         finally:
             await client.cleanup()
