@@ -40,9 +40,9 @@ mcp = [
   "mcp[cli]>=1.2.0",
   "cachetools>=6.2.0",
   "asyncer>=0.0.9",
+  "pandas>=2.2.3",
 ]
 local-mcp = [
-    "rainbow-api>=1.0.10",
 ]
 dev = [
   "fsspec[libarchive,http,s3]>=2025.9.0",

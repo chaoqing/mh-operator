@@ -7,6 +7,7 @@ from collections.abc import AsyncGenerator
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import quote
 
 from cachetools import TTLCache
 from pydantic import Field
@@ -69,7 +70,7 @@ class InMemoryStorage(StorageBackend):
         """give one path a unique key"""
         path = Path(path)
 
-        key = path.name
+        key = quote(path.name)
         with threading.Lock():
             if key in self._storage:
                 key = "-" + key
