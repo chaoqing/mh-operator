@@ -90,7 +90,7 @@ class FileOpenMode(str, Enum):
 
 def analysis_samples(
     samples: Annotated[
-        List[SampleInfo],
+        list[SampleInfo],
         Field(
             description=f"The Mass Hunter tests (.D) to analysis",
         ),
@@ -108,14 +108,12 @@ def analysis_samples(
         ),
     ] = "batch.uaf",
     report_method: Annotated[
-        Optional[Path],
+        Path | None,
         Field(
             description="The Mass Hunter report method path (.m)",
         ),
     ] = None,
-    istd: Annotated[
-        Optional[ISTDOptions], Field(description="The ISTD options")
-    ] = None,
+    istd: Annotated[ISTDOptions | None, Field(description="The ISTD options")] = None,
     mode: Annotated[
         FileOpenMode, Field(description="The mode while open the analysis file")
     ] = FileOpenMode.WRITE,
@@ -216,7 +214,32 @@ def analysis_samples(
         raise RuntimeError(f"Failed to exec code '{commands}': {e}")
 
 
-UAF_JSON_MERGE_SQL_COMMAND = """
+SAMPLE_META_FIELDS = "".join(
+    f"'{f}', s.{f}, "
+    for f in [
+        "BatchID",
+        "SampleID",
+        "SampleName",
+        "AcqDateTime",
+        "DataFileName",
+        "AcqMethodFileName",
+        "AcqOperator",
+        "Comment",
+        "Dilution",
+        "InstrumentName",
+        "PlateCode",
+        "PlatePosition",
+        "RackCode",
+        "RackPosition",
+        "Vial",
+        "SamplePosition",
+        "SampleType",
+        "TuneFileName",
+        "TuneFileLastTimeStamp",
+    ]
+).rstrip(", ")
+
+UAF_JSON_MERGE_SQL_COMMAND = f"""
 WITH
     -- 1. Aggregate Ion Peaks for each Component
     ion_peaks_agg AS (SELECT BatchID,
@@ -328,25 +351,7 @@ WITH
                                        SampleID)
 
 -- 5. Final Select: Combine Sample info with aggregated Components array
-SELECT JSON_OBJECT(
-                   'BatchID', s.BatchID,
-                   'SampleID', s.SampleID,
-                   'SampleName', s.SampleName,
-                   'AcqDateTime', s.AcqDateTime,
-                   'DataFileName', s.DataFileName,
-                   'AcqMethodFileName', s.AcqMethodFileName,
-                   'AcqOperator', s.AcqOperator,
-                   'Comment', s.Comment,
-                   'Dilution', s.Dilution,
-                   'InstrumentName', s.InstrumentName,
-                   'PlateCode', s.PlateCode,
-                   'PlatePosition', s.PlatePosition,
-                   'RackCode', s.RackCode,
-                   'RackPosition', s.RackPosition,
-                   'SamplePosition', s.SamplePosition,
-                   'SampleType', s.SampleType,
-                   'TuneFileName', s.TuneFileName,
-                   'TuneFileLastTimeStamp', s.TuneFileLastTimeStamp,
+SELECT JSON_OBJECT({SAMPLE_META_FIELDS}, 
                    'JSONEncoded_Components', COALESCE(JSON(sca.components_json), JSON_ARRAY())
            ) AS JSONEncoded
 FROM Sample s
@@ -355,8 +360,15 @@ FROM Sample s
                        AND s.SampleID = sca.SampleID
 ;"""
 
+UAF_JSON_MERGE_META_SQL_COMMAND = f"""
+SELECT JSON_OBJECT({SAMPLE_META_FIELDS}, 
+                   'JSONEncoded_Components', JSON_ARRAY()
+           ) AS JSONEncoded
+FROM Sample s
+;"""
 
-def recursive_decoding(dct: Dict[str, Any], b64decode=True) -> Dict[str, Any]:
+
+def recursive_decoding(dct: dict[str, Any], b64decode=True) -> dict[str, Any]:
     """
     An object_hook for json.loads that handles B64Encoded_* and JSONEncoded_* keys.
     """
@@ -415,7 +427,20 @@ def merge_uaf_tables(
                     "merging without database support is pending development"
                 )
 
+        check_table_exist = (
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='{}'"
+        )
+        components_exist = (
+            conn.execute(check_table_exist.format("Component")).fetchone() is not None
+        )
+
         return [
             json.loads(r, object_hook=partial(recursive_decoding, b64decode=b64decode))
-            for r, in conn.cursor().execute(UAF_JSON_MERGE_SQL_COMMAND).fetchall()
+            for r, in conn.cursor()
+            .execute(
+                UAF_JSON_MERGE_SQL_COMMAND
+                if components_exist
+                else UAF_JSON_MERGE_META_SQL_COMMAND
+            )
+            .fetchall()
         ]
