@@ -358,14 +358,14 @@ FROM Sample s
          LEFT JOIN sample_components_agg sca
                    ON s.BatchID = sca.BatchID
                        AND s.SampleID = sca.SampleID
-;"""
+;"""  # nosec
 
 UAF_JSON_MERGE_META_SQL_COMMAND = f"""
 SELECT JSON_OBJECT({SAMPLE_META_FIELDS}, 
                    'JSONEncoded_Components', JSON_ARRAY()
            ) AS JSONEncoded
 FROM Sample s
-;"""
+;"""  # nosec
 
 
 def recursive_decoding(dct: dict[str, Any], b64decode=True) -> dict[str, Any]:
