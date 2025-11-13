@@ -4,6 +4,7 @@ import asyncio
 import base64
 import json
 import os
+import tarfile
 from collections.abc import Iterable
 from contextlib import AsyncExitStack
 from io import BytesIO
@@ -161,7 +162,7 @@ class MCPClient:
         (res,) = response.content
         return res
 
-    async def analysis_sample(self, test_D: Path, raw=True) -> str:
+    async def analysis_sample(self, test_D: Path, raw=True, full=False) -> str:
         uri = zip_and_upload(test_D, f"{self.server_url}/file/{test_D.name}.zip")
         logger.debug(f"test {test_D} uploaded to {self.server_url} with uri {uri}")
         res = await self.call_tool(
@@ -170,8 +171,31 @@ class MCPClient:
             raw=raw,
         )
         logger.debug(f"remote analysis_sample complete with {res.text}")
-        if raw:
+        if raw and not full:
             return await self.get_resource(res.text)
+        elif raw and full:
+            worksapce_resource_uri = (
+                res.text.replace("report", "workspace", 1).removesuffix(".json")
+                + ".tar.gz"
+            )
+            logger.debug(f"remote workspace served under {worksapce_resource_uri}")
+            bytes_buffer = BytesIO(await self.get_resource(worksapce_resource_uri))
+            with tarfile.open(fileobj=bytes_buffer, mode="r:gz") as tar:
+                res_json = next(
+                    f for f in tar.getmembers() if f.name.endswith(".uaf.json")
+                )
+                logger.debug(f"result json under {res_json}")
+                cs_json = next(
+                    f for f in tar.getmembers() if f.name.endswith(".uaf.cs.json")
+                )
+                logger.debug(f"cs json under {cs_json}")
+                return (
+                    "[\n"
+                    + tar.extractfile(res_json).read().decode()
+                    + ",\n"
+                    + tar.extractfile(cs_json).read().decode()
+                    + "\n]"
+                )
         else:
             return res.text
 
@@ -220,6 +244,7 @@ def analysis_examples(
     mcp_server_url: str | None = None,
     batch: int = 5,
     raw: bool = True,
+    full: bool = False,
 ):
     async def main():
         client = MCPClient(mcp_server_url=mcp_server_url)
@@ -230,7 +255,7 @@ def analysis_examples(
 
             @map_concurrent(batch)
             async def _analysis_examples(s):
-                return await client.analysis_sample(s, raw=raw)
+                return await client.analysis_sample(s, raw=raw, full=full)
 
             async for result, error in _analysis_examples(samples):
                 if error is not None:

@@ -1,6 +1,8 @@
 from typing import Any
 
 import hashlib
+import os
+import tarfile
 import threading
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
@@ -17,9 +19,18 @@ from mh_operator.utils.common import BaseSingletonMeta
 
 
 async def async_read_bytes(path: Path, chunk: int = -1) -> AsyncGenerator[bytes, None]:
-    with path.open("rb") as f:
-        while data := f.read(chunk):
-            yield data
+    if path.is_dir():
+        output_buffer = BytesIO()
+
+        with tarfile.open(fileobj=output_buffer, mode="w:gz") as tar:
+            for item_path in path.iterdir():
+                tar.add(item_path, arcname=item_path.name)
+
+        yield output_buffer.getvalue()
+    else:
+        with path.open("rb") as f:
+            while data := f.read(chunk):
+                yield data
 
 
 class StorageBackend(ABC):

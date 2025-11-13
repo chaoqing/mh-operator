@@ -178,6 +178,44 @@ def mcp_client(
         raise typer.Exit(1)
 
 
+@app.command(name="extract-samples")
+def extract_samples_command(
+    samples: Annotated[
+        list[Path],
+        typer.Argument(
+            help=f"The Mass Hunter sample data folder (sample.D) path",
+        ),
+    ],
+    mh: Annotated[
+        Path,
+        typer.Option(
+            help="The bin path of the installed Mass Hunter",
+        ),
+    ] = __DEFAULT_MH_BIN_DIR__,
+    output: Annotated[
+        str,
+        typer.Option(
+            "-o",
+            "--output",
+            help="The output file path or '-' for stdout",
+        ),
+    ] = "-",
+):
+    from mh_operator.routines.extract_samples import (
+        dump_chromatogram_spectrum,
+        extract_samples,
+    )
+
+    results = extract_samples(samples, mh)
+    if output == "-":
+        print(results)
+    elif output.endswith(".json"):
+        with open(output, "wb") as fp:
+            fp.write(dump_chromatogram_spectrum(*results, indent=2))
+    else:
+        raise NotImplementedError(f"not supported type for {output}")
+
+
 @app.command(name="extract-uaf")
 def extract_mass_hunter_analysis_file_command(
     uaf: Annotated[

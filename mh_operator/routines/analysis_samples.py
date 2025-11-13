@@ -297,6 +297,7 @@ WITH
     --    AND joining again to get the Primary Hit's details
     component_json AS (SELECT c.BatchID,
                               c.SampleID,
+                              c.PrimaryHitID AS HitID,
                               c.RetentionTime,
                               JSON_OBJECT(
                                       'RetentionTime', c.RetentionTime,

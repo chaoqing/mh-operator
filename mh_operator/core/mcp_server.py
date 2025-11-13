@@ -8,6 +8,7 @@ from pathlib import Path
 from tarfile import TarFile
 from tempfile import TemporaryDirectory
 from urllib.parse import urlparse
+from urllib.request import url2pathname
 from zipfile import ZipFile
 
 from asyncer import asyncify
@@ -23,6 +24,7 @@ from starlette.responses import (
 )
 
 from ..routines.analysis_samples import SampleInfo, analysis_samples, merge_uaf_tables
+from ..routines.extract_samples import dump_chromatogram_spectrum, extract_samples
 from ..routines.extract_uaf import extract_mass_hunter_analysis_file
 from ..utils.common import SingletonABCMeta, logger
 from ..utils.in_memory_storage import (
@@ -54,6 +56,9 @@ def extract_files_to_temp(uri: str, temp_dir: str) -> list[Path]:
     parsed_url = urlparse(uri)
 
     suffix = Path(parsed_url.path).suffix
+    if parsed_url.scheme == "file" and suffix == ".D":
+        # sample tests on remote OS file system `file://C:/MassHunter/sample.D`
+        return [Path(url2pathname(f"{parsed_url.netloc}{parsed_url.path}"))]
 
     if suffix.lower() == ".zip":
         with ZipFile(BytesIO(load_uri_bytes(uri))) as fp:
@@ -106,7 +111,7 @@ def extract_files_to_temp(uri: str, temp_dir: str) -> list[Path]:
 def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> FastMCP:
     mcp = FastMCP("mh-operator MCP server", **kwargs)
 
-    @mcp.resource("resource://uaf/{key}")
+    @mcp.resource("resource://workspace/{key}")
     async def uaf_project(
         key: Annotated[
             str,
@@ -134,7 +139,7 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
     ) -> Annotated[
         str | None,
         Field(
-            description="The binary data of the resource, or None if not found.",
+            description="The text data of the resource, or None if not found.",
         ),
     ]:
         """Read binary data from the in-memory filesystem."""
@@ -201,11 +206,16 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
         with TemporaryDirectory() as tmpdir:
             (sample,) = await asyncify(extract_files_to_temp)(uri, tmpdir)
             logger.debug(f"got sample {sample} from {uri}")
+            is_tmp_workspace = sample.is_relative_to(tmpdir)
 
             res = await asyncify(analysis_samples)(
                 [SampleInfo(path=sample)],
                 analysis_method=settings.analysis_method,
-                output=settings.output,
+                output=(
+                    settings.output
+                    if is_tmp_workspace
+                    else sample.with_suffix(".uaf").name
+                ),
                 report_method=settings.report_method,
                 mode=settings.mode,
                 mh_bin_path=settings.mh_bin_path,
@@ -216,15 +226,37 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
                 ".uaf.json"
             ), "Internal error: unexpected result file"
 
+            (cs_data,) = await asyncify(extract_samples)(
+                [sample],
+                mh_bin_path=settings.mh_bin_path,
+            )
+            chromatogram_spectrum_json_bytes = dump_chromatogram_spectrum(cs_data)
+            cs_data_path = res.with_suffix(".cs.json")
+            cs_data_path.write_bytes(chromatogram_spectrum_json_bytes)
+            logger.debug(f"dump {sample} chromatogram_spectrum in {cs_data_path}")
+
             resource_key = storage.create_unique_key(
                 Path(urlparse(uri).path).with_suffix(".json")
             )
             logger.debug(f"result will be saved as key {resource_key}")
 
+            if not is_tmp_workspace:
+                tmp_res_path = (
+                    Path(tmpdir) / "UnknownsResults" / settings.output
+                ).with_suffix(".uaf.json")
+                tmp_res_path.parent.mkdir(parents=True, exist_ok=True)
+                tmp_res_path.write_bytes(res.read_bytes())
+                tmp_res_path.with_suffix("").write_bytes(
+                    res.with_suffix("").read_bytes()
+                )
+                tmp_res_path.with_suffix(".cs.json").write_bytes(
+                    chromatogram_spectrum_json_bytes
+                )
+
             await asyncio.gather(
                 storage.put(
-                    resource_key.removesuffix(".json") + ".uaf",
-                    async_read_bytes(res.with_suffix("")),
+                    resource_key.removesuffix(".json") + ".tar.gz",
+                    async_read_bytes(Path(tmpdir) / "UnknownsResults"),
                 ),
                 storage.put(resource_key, async_read_bytes(res)),
             )
@@ -252,6 +284,7 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
                     f"\n{uaf['Comment']}"
                     f"\nList of detected components:\n"
                     f"{components}\n"
+                    f"\nThe full report can be found with resource://report/{resource_key}\n"
                 )
 
     if file_service:

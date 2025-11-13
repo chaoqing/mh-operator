@@ -122,6 +122,7 @@ def test_analysis_examples():
                 mcp_server_url=settings.mcp_server_url or "http://127.0.0.1:3000",
                 batch=2,
                 raw=True,
+                full=True,
             ),
         ):
             test_d.with_name(test.name + ".txt").write_text(text_result)
@@ -131,7 +132,7 @@ def test_analysis_examples():
         db.unlink(missing_ok=True)
         res = merge_uaf_tables(
             *[
-                json.loads(test_d.with_name(t.name + ".json").read_text())
+                json.loads(test_d.with_name(t.name + ".json").read_text())[0]
                 for t in tests
             ],
             tmp_db=db,
