@@ -57,12 +57,12 @@ def export_sample(test_dir):
             record = scan_data[i]
             spectrum_data = record.SpectrumData
 
-            spectrum_mz, spectrum_abundance = zip(
-                *[
-                    (spectrum_data.GetMZValueAt(j), abundance)
-                    for j, abundance in enumerate(spectrum_data)
-                ]
-            )
+            spectrum_mz = []
+            spectrum_abundance = []
+            for j, abundance in enumerate(spectrum_data):
+                spectrum_mz.append(spectrum_data.GetMZValueAt(j))
+                spectrum_abundance.append(abundance)
+
             records.append(
                 {
                     "ScanID": record.ScanID,
