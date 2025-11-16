@@ -1,8 +1,9 @@
+import io
 import os
 import struct
 from collections import Counter
 from functools import cached_property
-from itertools import islice
+from itertools import groupby, islice
 
 import numpy as np
 
@@ -12,21 +13,44 @@ from mh_operator.utils.common import logger
 class AgilentGCMSDataReader:
     """Read the Agilent GCMS data.ms file described inside [Agilent .ms File Structure](https://github.com/evanyeyeye/rainbow/blob/ab0c6501901d2dbc746d96d99339f34be1f4c822/docs/source/agilent/ms.rst)"""
 
-    def __init__(self, file_object):
+    fp = None
+
+    def __init__(self, file=None, fileobj=None):
+        if fileobj:
+            self.fp = fileobj
+            self._extfileobj = True
+        else:
+            file = os.fspath(file)
+            if os.path.isdir(file):
+                file = os.path.join(file, "data.ms")
+            self.file = file
+            self._extfileobj = False
+
+    def __enter__(self):
+        if not self._extfileobj:
+            self.fp = open(self.file, "rb")
+
+        fp = self.fp
+
         FILE_TYPE_STR_OFFSET = 0x4  # File type string (GC / MS Data File)
 
         # Validate file header.
-        file_object.seek(0)
-        (head_validation,) = struct.Struct(">I").unpack(file_object.read(4))
+        fp.seek(0)
+        (head_validation,) = struct.Struct(">I").unpack(fp.read(4))
         assert (
             head_validation == 0x01320000
         ), "Not correct magic number for Agilent GCMS data"
 
-        self._f = file_object
-
         # Determine the type of .ms file based on header.
         type_ms_str = self._read_string(FILE_TYPE_STR_OFFSET, 1)
         assert type_ms_str == "GC / MS Data File", "Only GC / MS Data File is supported"
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if not self._extfileobj and self.fp is not None:
+            self.fp.close()
+            self.fp = None
 
     def _read_string(self, offset, gap=2):
         """
@@ -42,10 +66,10 @@ class AgilentGCMSDataReader:
             String at the specified offset in the file header.
 
         """
-        self._f.seek(offset)
-        str_len = struct.unpack("<B", self._f.read(1))[0] * gap
+        self.fp.seek(offset)
+        str_len = struct.unpack("<B", self.fp.read(1))[0] * gap
         try:
-            return self._f.read(str_len)[::gap].decode().strip()
+            return self.fp.read(str_len)[::gap].decode().strip()
         except Exception as e:
             logger.warning(f"Failed to read string from {offset}: {e}")
             return ""
@@ -71,7 +95,7 @@ class AgilentGCMSDataReader:
 
     @cached_property
     def _raw_file_content_data(self):
-        f = self._f
+        fp = self.fp
 
         short_unpack = struct.Struct(">H").unpack
         int_unpack = struct.Struct(">I").unpack
@@ -81,34 +105,34 @@ class AgilentGCMSDataReader:
         SCAN_COUNT_OFFSET = (
             0x142  # Number of retention times (GC-MS), Short, Little Endian
         )
-        f.seek(SCAN_COUNT_OFFSET)
-        (num_times,) = little_short_unpack(f.read(2))
+        fp.seek(SCAN_COUNT_OFFSET)
+        (num_times,) = little_short_unpack(fp.read(2))
 
         # Go to the data start offset.
         FILE_HEADER_LENGTH_OFFSET = (
             0x10A  # File header length (in shorts), Short, Big Endian
         )
-        f.seek(FILE_HEADER_LENGTH_OFFSET)
-        (file_header_length_shorts,) = short_unpack(f.read(2))
+        fp.seek(FILE_HEADER_LENGTH_OFFSET)
+        (file_header_length_shorts,) = short_unpack(fp.read(2))
         # The data body starts after the file header.
         # This is to position the file pointer at the beginning of the first data segment.
-        f.seek(file_header_length_shorts * 2 - 2)
+        fp.seek(file_header_length_shorts * 2 - 2)
 
         times_us = np.empty(num_times, dtype=np.uint32)
         scan_counts = np.zeros(num_times, dtype=np.uint16)
         spectrum_pair_bytes = bytearray()
 
         for i in range(num_times):
-            f.read(2)
-            times_us[i] = int_unpack(f.read(4))[0]
-            f.read(6)
-            scan_counts[i] = short_unpack(f.read(2))[0]
-            f.read(4)
+            fp.read(2)
+            times_us[i] = int_unpack(fp.read(4))[0]
+            fp.read(6)
+            scan_counts[i] = short_unpack(fp.read(2))[0]
+            fp.read(4)
 
-            pair_bytes = f.read(scan_counts[i] * 4)
+            pair_bytes = fp.read(scan_counts[i] * 4)
             spectrum_pair_bytes.extend(pair_bytes)
 
-            f.read(10)
+            fp.read(10)
 
         spectrum_pair_bytes = bytes(spectrum_pair_bytes)
         spectrum_pair_counts = len(spectrum_pair_bytes) // 4
@@ -168,14 +192,14 @@ class AgilentGCMSDataReader:
         return metadata
 
     @cached_property
-    def retention_time(self):
+    def retention_time_us(self):
         times_us, *_ = self._raw_file_content_data
-        return times_us / 60000
+        return times_us
 
     @cached_property
-    def mass_to_charge(self):
+    def mass_to_charge_x20(self):
         _, _, mzs_x20_int, _ = self._raw_file_content_data
-        return np.sort(np.unique(mzs_x20_int)) / 20
+        return np.sort(np.unique(mzs_x20_int))
 
     @property
     def list_data(self):
@@ -190,13 +214,32 @@ class AgilentGCMSDataReader:
 
     @property
     def matrix_data(self):
+        """The full precision matrix data while y-axis are all unique mzs"""
         times_us, scan_counts, mzs_x20_int, abundance = self._raw_file_content_data
-        unique_mzs = np.sort(np.unique(mzs_x20_int))
+        unique_mzs = self.mass_to_charge_x20
         data = np.zeros((times_us.size, unique_mzs.size), dtype=np.uint32)
         x_index = np.repeat(np.arange(times_us.size), scan_counts)
         y_index = np.searchsorted(unique_mzs, mzs_x20_int)
         data[x_index, y_index] = abundance
         return data
+
+    @property
+    def data(self):
+        """Retention time as X axis, Integer Mzs as Y axis, Abundance as Z colors"""
+        retention_time = self.retention_time_us / 60000
+        data = self.matrix_data
+
+        mz_offset = round(self.mass_to_charge_x20[0].item() / 20)
+        largest_mz = round(self.mass_to_charge_x20[-1].item() / 20) + 1
+        abundance = np.zeros(
+            (retention_time.size, largest_mz - mz_offset), dtype=np.uint32
+        )
+        for g, vs in groupby(
+            enumerate(self.mass_to_charge_x20), lambda v: round(v[1] / 20)
+        ):
+            abundance[:, g - mz_offset] = data[:, [i for i, _ in vs]].sum(axis=1)
+
+        return retention_time, np.arange(mz_offset, largest_mz), abundance
 
     def spectrum_at(self, rt_minutes):
         """
