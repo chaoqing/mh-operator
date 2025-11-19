@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import io
 import os
 import struct
@@ -94,7 +96,7 @@ class AgilentGCMSDataReader:
         return metadata
 
     @cached_property
-    def _raw_file_content_data(self):
+    def raw_data(self) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         fp = self.fp
 
         short_unpack = struct.Struct(">H").unpack
@@ -120,6 +122,12 @@ class AgilentGCMSDataReader:
 
         times_us = np.empty(num_times, dtype=np.uint32)
         scan_counts = np.zeros(num_times, dtype=np.uint16)
+
+        if num_times == 0:
+            mzs_x20_int = np.array([], dtype=np.uint32)
+            abundance = np.array([], dtype=np.uint32)
+            return times_us, scan_counts, mzs_x20_int, abundance
+
         spectrum_pair_bytes = bytearray()
 
         for i in range(num_times):
@@ -192,30 +200,23 @@ class AgilentGCMSDataReader:
         return metadata
 
     @cached_property
-    def retention_time_us(self):
-        times_us, *_ = self._raw_file_content_data
+    def incomplete(self) -> bool:
+        return self.retention_time_ms.size < 2
+
+    @cached_property
+    def retention_time_ms(self) -> np.ndarray:
+        times_us, *_ = self.raw_data
         return times_us
 
     @cached_property
-    def mass_to_charge_x20(self):
-        _, _, mzs_x20_int, _ = self._raw_file_content_data
+    def mass_to_charge_x20(self) -> np.ndarray:
+        _, _, mzs_x20_int, _ = self.raw_data
         return np.sort(np.unique(mzs_x20_int))
 
     @property
-    def list_data(self):
-        times_us, scan_counts, mzs_x20_int, abundance = self._raw_file_content_data
-
-        spectrum_iter = zip(mzs_x20_int, abundance)
-
-        return [
-            (rt, list(islice(spectrum_iter, count)))
-            for rt, count in zip(times_us, scan_counts)
-        ]
-
-    @property
-    def matrix_data(self):
+    def abundance(self) -> np.ndarray:
         """The full precision matrix data while y-axis are all unique mzs"""
-        times_us, scan_counts, mzs_x20_int, abundance = self._raw_file_content_data
+        times_us, scan_counts, mzs_x20_int, abundance = self.raw_data
         unique_mzs = self.mass_to_charge_x20
         data = np.zeros((times_us.size, unique_mzs.size), dtype=np.uint32)
         x_index = np.repeat(np.arange(times_us.size), scan_counts)
@@ -224,29 +225,55 @@ class AgilentGCMSDataReader:
         return data
 
     @property
-    def data(self):
-        """Retention time as X axis, Integer Mzs as Y axis, Abundance as Z colors"""
-        retention_time = self.retention_time_us / 60000
-        data = self.matrix_data
+    def image(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        return self.matrix_data()
 
-        mz_offset = round(self.mass_to_charge_x20[0].item() / 20)
-        largest_mz = round(self.mass_to_charge_x20[-1].item() / 20) + 1
+    def matrix_data(self, ndigits=0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Retention time as X axis, Integer Mzs as Y axis, Abundance as Z colors"""
+        retention_time = self.retention_time_ms / 60000
+        data = self.abundance
+
+        scale_factor = 10**ndigits
+
+        mz_offset = round(self.mass_to_charge_x20[0].item() * scale_factor / 20)
+        largest_mz = round(self.mass_to_charge_x20[-1].item() * scale_factor / 20) + 1
         abundance = np.zeros(
             (retention_time.size, largest_mz - mz_offset), dtype=np.uint32
         )
         for g, vs in groupby(
-            enumerate(self.mass_to_charge_x20), lambda v: round(v[1] / 20)
+            enumerate(self.mass_to_charge_x20),
+            lambda v: round(v[1] * scale_factor / 20),
         ):
             abundance[:, g - mz_offset] = data[:, [i for i, _ in vs]].sum(axis=1)
 
-        return retention_time, np.arange(mz_offset, largest_mz), abundance
+        return (
+            retention_time,
+            np.arange(mz_offset, largest_mz) / scale_factor,
+            abundance,
+        )
 
-    def spectrum_at(self, rt_minutes):
+    def __iter__(self):
+        times_us, scan_counts, mzs_x20_int, abundance = self.raw_data
+        mzs = mzs_x20_int / 20.0
+
+        current_count = 0
+        for rt, count in zip(times_us / 60000.0, scan_counts):
+            yield {
+                "ScanTime": rt.item(),
+                "TIC": abundance[current_count : (current_count + count)].sum().item(),
+                "MZs": mzs[current_count : (current_count + count)][::-1].tolist(),
+                "Abundances": abundance[current_count : (current_count + count)][
+                    ::-1
+                ].tolist(),
+            }
+            current_count += count
+
+    def spectrum_at(self, rt_minutes) -> list[tuple[float, float]]:
         """
         Returns the real spectrum [(real_mz_float_after_divide_20, intensity),...]
         for a given retention time (in minutes).
         """
-        times_us, scan_counts, mzs_x20_int, abundance = self._raw_file_content_data
+        times_us, scan_counts, mzs_x20_int, abundance = self.raw_data
         target_rt_us = int(rt_minutes * 60000)
         if (
             times_us.size == 0

@@ -226,14 +226,22 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
                 ".uaf.json"
             ), "Internal error: unexpected result file"
 
-            (cs_data,) = await asyncify(extract_samples)(
-                [sample],
-                mh_bin_path=settings.mh_bin_path,
-            )
-            chromatogram_spectrum_json_bytes = dump_chromatogram_spectrum(cs_data)
             cs_data_path = res.with_suffix(".cs.json")
-            cs_data_path.write_bytes(chromatogram_spectrum_json_bytes)
-            logger.debug(f"dump {sample} chromatogram_spectrum in {cs_data_path}")
+            try:
+                assert (sample / "AcqData" / "MSScan.bin").exists()
+                (cs_data,) = await asyncify(extract_samples)(
+                    [sample],
+                    mh_bin_path=settings.mh_bin_path,
+                )
+                chromatogram_spectrum_json_bytes = dump_chromatogram_spectrum(cs_data)
+                cs_data_path.write_bytes(chromatogram_spectrum_json_bytes)
+                logger.debug(f"dump {sample} chromatogram_spectrum in {cs_data_path}")
+            except Exception as e:
+                chromatogram_spectrum_json_bytes = b"[]"
+                cs_data_path.write_bytes(chromatogram_spectrum_json_bytes)
+                logger.warning(
+                    f"dump {sample} chromatogram_spectrum in {cs_data_path} as `[]` because of error {e}"
+                )
 
             resource_key = storage.create_unique_key(
                 Path(urlparse(uri).path).with_suffix(".json")

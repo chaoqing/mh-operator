@@ -59,9 +59,10 @@ def export_sample(test_dir):
 
             spectrum_mz = []
             spectrum_abundance = []
-            for j, abundance in enumerate(spectrum_data):
-                spectrum_mz.append(spectrum_data.GetMZValueAt(j))
-                spectrum_abundance.append(abundance)
+            if spectrum_data is not None:
+                for j, abundance in enumerate(spectrum_data):
+                    spectrum_mz.append(spectrum_data.GetMZValueAt(j))
+                    spectrum_abundance.append(abundance)
 
             records.append(
                 {

@@ -1,5 +1,7 @@
 import os
 from glob import glob
+from itertools import zip_longest
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -63,7 +65,7 @@ def test_ms_parser_consistency(file_path):
     # Parse with ms_reader.py
     with AgilentGCMSDataReader(file_path) as f:
         metadata = f.meta_data
-        (retention_time, mass_to_charge, matrix_data) = f.data
+        (retention_time, mass_to_charge, matrix_data) = f.image
 
     # rainbow skip all zeros (along retention time) mzs
     available_mz = np.any(matrix_data > 0, axis=0)
@@ -132,5 +134,54 @@ def test_ms_parser_consistency(file_path):
     # For other metadata fields that ms_reader.py extracts but rainbow.agilent.chemstation.parse_ms doesn't expose in its returned metadata,
     # we cannot directly compare them. The goal is to ensure ms_reader.py is consistent with rainbow's output.
     # If rainbow's parse_ms returns a subset of metadata, we check that subset.
+
+    print(f"Successfully compared {file_path}")
+
+
+@pytest.mark.parametrize("file_path", get_ms_files())
+def test_ms_parser_with_mh(file_path):
+    try:
+        from mh_operator.routines.extract_samples import (
+            __DEFAULT_MH_BIN_DIR__,
+            extract_samples,
+        )
+
+        if not __DEFAULT_MH_BIN_DIR__.exists():
+            raise ModuleNotFoundError
+    except ModuleNotFoundError:
+        print("Skipping test: Mass Hunter does not exist")
+        return
+
+    print(f"Testing file: {file_path}")
+
+    (mh_result,) = extract_samples([Path(file_path).parent])
+    # Parse with ms_reader.py
+    with AgilentGCMSDataReader(file_path) as f:
+        for target, got in zip_longest(mh_result.Records, f):
+            # Times (xlabels)
+            np.testing.assert_array_almost_equal(
+                got["ScanTime"],
+                target.ScanTime,
+                decimal=4,
+                err_msg=f"Times mismatch for {file_path}",
+            )
+
+            # Ylabels (mz values)
+            np.testing.assert_array_almost_equal(
+                got["MZs"],
+                target.MZs,
+                decimal=4,
+                err_msg=f"Ylabels mismatch for {file_path}",
+            )
+
+            # Data (intensities)
+            # Data can be uint32 in ms_reader and uint64 in rainbow, but values should be the same.
+            # Use assert_array_equal for integer arrays.
+            np.testing.assert_allclose(
+                got["Abundances"],
+                target.Abundances,
+                atol=10,
+                err_msg=f"Data (intensities) mismatch for {file_path}",
+            )
 
     print(f"Successfully compared {file_path}")

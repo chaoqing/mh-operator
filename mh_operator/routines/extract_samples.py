@@ -23,15 +23,20 @@ from mh_operator.utils.ironpython27 import (
 )
 
 
-class ChromatogramSpectrumRecord(BaseModel):
+class ChromatogramSpectrumRecordSimple(BaseModel):
+    ScanTime: float
+    TIC: float
+    MZs: list[float]
+    Abundances: list[float]
+
+
+class ChromatogramSpectrumRecord(ChromatogramSpectrumRecordSimple):
     ScanID: int
     ScanMethodID: int
     # TimeSegmentID:int # seems to be always the same
     # CalibrationID:int # seems to be always the same
     # CycleNumber : int # seems to be the same as ScanID
-    ScanTime: float
     ScanType: int
-    TIC: float
     AbundanceLimit: float
     BasePeakAbundance: float
     CollisionEnergy: float
@@ -39,8 +44,6 @@ class ChromatogramSpectrumRecord(BaseModel):
     IonPolarity: int
     MassCalOffset: int
     MzOfInterest: float
-    MZs: list[float]
-    Abundances: list[float]
 
 
 @dataclass
