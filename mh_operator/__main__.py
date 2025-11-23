@@ -216,6 +216,54 @@ def extract_samples_command(
         raise NotImplementedError(f"not supported type for {output}")
 
 
+def parse_rt_range(rt: list[float]) -> list[tuple[float, float]]:
+    if len(rt) % 2 != 0:
+        raise typer.BadParameter(
+            f"the retention time must be provided as pairs of numbers"
+        )
+    return [(rt[i], rt[i + 1]) for i in range(0, len(rt), 2)]
+
+
+@app.command(name="manual-integration")
+def manual_integration_command(
+    rt_range: Annotated[
+        list[float],
+        typer.Argument(
+            help=f"The range of RT values to use (inclusive)",
+            callback=parse_rt_range,
+        ),
+    ],
+    sample: Annotated[
+        Path,
+        typer.Option(
+            "-i",
+            "--sample",
+            help=f"The Mass Hunter sample data folder (sample.D) path",
+        ),
+    ],
+    analysis_method: Annotated[
+        Path,
+        typer.Option(
+            "-m",
+            "--method",
+            help="The Mass Hunter analysis method path (.m)",
+        ),
+    ] = "Process.m",
+    mh: Annotated[
+        Path,
+        typer.Option(
+            help="The bin path of the installed Mass Hunter",
+        ),
+    ] = __DEFAULT_MH_BIN_DIR__,
+):
+    from mh_operator.routines.analysis_samples import manual_integration
+
+    results = manual_integration(
+        sample, *rt_range, analysis_method=analysis_method, mh_bin_path=mh
+    )
+    print(results)
+
+
 @app.command(name="extract-uaf")
 def extract_mass_hunter_analysis_file_command(
     uaf: Annotated[

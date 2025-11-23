@@ -23,7 +23,12 @@ from starlette.responses import (
     StreamingResponse,
 )
 
-from ..routines.analysis_samples import SampleInfo, analysis_samples, merge_uaf_tables
+from ..routines.analysis_samples import (
+    SampleInfo,
+    analysis_samples,
+    manual_integration,
+    merge_uaf_tables,
+)
 from ..routines.extract_samples import dump_chromatogram_spectrum, extract_samples
 from ..routines.extract_uaf import extract_mass_hunter_analysis_file
 from ..utils.common import SingletonABCMeta, logger
@@ -294,6 +299,56 @@ def create_mcp_server(storage: InMemoryStorage, file_service=True, **kwargs) -> 
                     f"{components}\n"
                     f"\nThe full report can be found with resource://report/{resource_key}\n"
                 )
+
+    @mcp.tool()
+    async def do_manual_integration(
+        uri: Annotated[
+            str,
+            Field(
+                description=(
+                    "The full URI of the MassHunter test (.D) to analyze. Zipped test (.D.zip) will be unzipped automatically. Scheme must be set accordingly. "
+                    "Supports `resource://` and `file://` for in-memory storage and OS files on the remote server where this MCP is hosted respectively, and other general URI like `https://`, `ftp://` and `s3://`(for S3 service). "
+                ),
+            ),
+        ],
+        start_rt: Annotated[
+            float,
+            Field(
+                description=("The start retension time of the manual integration."),
+            ),
+        ],
+        end_rt: Annotated[
+            float,
+            Field(
+                description=("The end retension time of the manual integration."),
+            ),
+        ],
+    ) -> Annotated[
+        str,
+        Field(
+            description="The manual integration result in json format",
+        ),
+    ]:
+        """Do manual integration on a MassHunter sample (.D) from a given URI.
+
+        The local file path on MCP client OS is generally not accessiable to this tool (usual case user asks to analysis `/path/to/test.D`).
+        You can use MCP tool like `upload_test_zip` to pack and upload the it into third-party storage or this MCP provided in-memory storage.
+        **Important**: When user ask to analysis files without specify the schema (includeing no `file://` case), **always upload first** and then call this tool with the resource URI.
+        """
+        logger.debug(f"got request to analysis {uri}")
+        with TemporaryDirectory() as tmpdir:
+            (sample,) = await asyncify(extract_files_to_temp)(uri, tmpdir)
+            logger.debug(f"got sample {sample} from {uri}")
+
+            res = await asyncify(manual_integration)(
+                sample,
+                (start_rt, end_rt),
+                analysis_method=settings.analysis_method,
+                mh_bin_path=settings.mh_bin_path,
+            )
+            logger.debug(f"analysis {sample} result in {res}")
+
+            return json.dumps(res)
 
     if file_service:
         attach_file_service(mcp, storage)

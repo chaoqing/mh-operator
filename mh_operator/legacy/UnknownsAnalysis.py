@@ -26,7 +26,10 @@ try:
     import _commands
     import System
     from Agilent.MassSpectrometry.DataAnalysis.UnknownsAnalysisII.Command import (
+        AddManualComponent,
+        AddManualComponentParameter,
         AddTargetCompoundParameter,
+        ComponentRowIDParameter,
         KeyValue,
         TargetCompoundColumnValuesParameter,
     )
@@ -38,7 +41,10 @@ except ImportError:
         Command as _commands,
     )
     from mh_operator.SDK.Agilent.MassSpectrometry.DataAnalysis.UnknownsAnalysisII.Command import (
+        AddManualComponent,
+        AddManualComponentParameter,
         AddTargetCompoundParameter,
+        ComponentRowIDParameter,
         KeyValue,
         TargetCompoundColumnValuesParameter,
     )
@@ -238,6 +244,62 @@ def export_analysis(analysis_file=None):
     finally:
         if analysis_file is not None:
             _commands.CloseAnalysis()
+
+
+def manual_integration(sample, *start_end_pair):
+    # type: (str, list[tuple[float, float]]) -> dict
+    analysis_method = os.getenv("ANALYSIS_METHOD", None)
+    folder, name = os.path.split(sample)
+    analysis_name = name + "-temp.uaf"
+
+    _commands.NewAnalysis(folder, analysis_name)
+    logger.info("Analysis project {} created under {}".format(analysis_name, folder))
+
+    _commands.AddSamples(System.Array[System.String]([sample]))
+    logger.info("Added samples {}".format(sample))
+
+    if analysis_method is not None:
+        _commands.LoadMethodToAllSamples(analysis_method)
+        logger.info("Method {} loaded to all samples".format(analysis_method))
+
+    batch_id = next(iter(uadacc.GetBatches())).BatchID
+    samples_id = next(s.SampleID for s in uadacc.GetSamples(batch_id))
+    deconvolution_method_id = next(
+        m.DeconvolutionMethodID
+        for m in uadacc.GetDeconvolutionMethods(batch_id, samples_id)
+    )
+
+    for ith, (start_rt, end_rt) in enumerate(start_end_pair):
+        _commands.AddManualComponent(
+            System.Array[AddManualComponentParameter](
+                [
+                    AddManualComponentParameter(
+                        batch_id,
+                        samples_id,
+                        deconvolution_method_id,
+                        ith,
+                        start_rt,
+                        end_rt,
+                    )
+                ]
+            ),
+            ComponentRowIDParameter(
+                batch_id,
+                samples_id,
+                deconvolution_method_id,
+                ith,
+            ),
+        )
+
+    tables = DataTables()
+
+    tables.Component = (uadacc.GetComponents(batch_id, samples_id),)
+    tables.Hit = (uadacc.GetHits(batch_id, samples_id),)
+    tables.IonPeak = (uadacc.GetIonPeak(batch_id, samples_id),)
+
+    _commands.CloseAnalysis()
+
+    return tables.to_json()
 
 
 def analysis_samples(

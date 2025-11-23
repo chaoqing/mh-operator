@@ -214,6 +214,88 @@ def analysis_samples(
         raise RuntimeError(f"Failed to exec code '{commands}': {e}")
 
 
+def manual_integration(
+    sample: Annotated[
+        Path,
+        Field(
+            description=f"The Mass Hunter tests (.D) to analysis",
+        ),
+    ],
+    start_end_pair: Annotated[
+        tuple[float, float],
+        Field(
+            description="The start and end pair of retention times to analysis",
+        ),
+    ],
+    *more_pairs: Annotated[
+        list[tuple[float, float]],
+        Field(
+            description="put more pairs as start_end_pair format",
+        ),
+    ],
+    analysis_method: Annotated[
+        Path,
+        Field(
+            description="The Mass Hunter analysis method path (.m)",
+        ),
+    ] = Path("Process.m"),
+    mh_bin_path: Annotated[
+        Path,
+        Field(
+            description="The bin path of the installed Mass Hunter",
+        ),
+    ] = __DEFAULT_MH_BIN_DIR__,
+) -> Annotated[
+    dict,
+    Field(
+        description="The dumped json string of the data contained inside the uaf file"
+    ),
+]:
+    """Export all data tables from Mass Hunter analysis file to json/xlsx"""
+    legacy_script = Path(__file__).parent.parent / "legacy" / "__init__.py"
+
+    uac_exe = Path(mh_bin_path) / "UnknownsAnalysisII.Console.exe"
+    assert Path(uac_exe).exists()
+
+    @function_to_string(return_type="asis", oneline=True)
+    def _commands(
+        sample: str,
+        *start_end_pair: list[tuple[float, float]],
+    ):
+        from mh_operator.legacy.common import global_state
+
+        global_state.UADataAccess = UADataAccess
+        from mh_operator.legacy.UnknownsAnalysis import manual_integration
+
+        return manual_integration(sample, *start_end_pair)
+
+    commands = _commands(
+        str(Path(sample).absolute()),
+        start_end_pair,
+        *more_pairs,
+    )
+    logger.debug(f"use {legacy_script} to exec code '{commands}'")
+
+    return_code, stdout, stderr = run_ironpython_script(
+        legacy_script,
+        uac_exe,
+        python_paths=[str(uac_exe.parent), str(Path(__file__).parent.parent / "..")],
+        extra_envs=[
+            f"MH_CONSOLE_COMMAND_STRING={commands}",
+            f"ANALYSIS_METHOD={analysis_method}",
+        ],
+        capture_type=CaptureType.SEPERATE,
+    )
+    (
+        Path(sample).with_name("UnknownsResults") / (Path(sample).name + "-temp.uaf")
+    ).unlink(missing_ok=True)
+    if return_code != 0:
+        logger.warning(f"UAC return with {return_code} and stderr:\n{stderr}")
+
+    logger.debug(f"UAC return stdout:\n {stdout}")
+    return json.loads(stdout.strip().rsplit("\n", maxsplit=1)[-1])
+
+
 SAMPLE_META_FIELDS = "".join(
     f"'{f}', s.{f}, "
     for f in [
@@ -352,7 +434,7 @@ WITH
                                        SampleID)
 
 -- 5. Final Select: Combine Sample info with aggregated Components array
-SELECT JSON_OBJECT({SAMPLE_META_FIELDS}, 
+SELECT JSON_OBJECT({SAMPLE_META_FIELDS},
                    'JSONEncoded_Components', COALESCE(JSON(sca.components_json), JSON_ARRAY())
            ) AS JSONEncoded
 FROM Sample s
@@ -362,7 +444,7 @@ FROM Sample s
 ;"""  # nosec
 
 UAF_JSON_MERGE_META_SQL_COMMAND = f"""
-SELECT JSON_OBJECT({SAMPLE_META_FIELDS}, 
+SELECT JSON_OBJECT({SAMPLE_META_FIELDS},
                    'JSONEncoded_Components', JSON_ARRAY()
            ) AS JSONEncoded
 FROM Sample s
