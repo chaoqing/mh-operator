@@ -162,6 +162,20 @@ class MCPClient:
         (res,) = response.content
         return res
 
+    async def manual_integration(
+        self, test_D: Path, start_rt: float, end_rt: float
+    ) -> str:
+        uri = zip_and_upload(test_D, f"{self.server_url}/file/{test_D.name}.zip")
+        logger.debug(f"test {test_D} uploaded to {self.server_url} with uri {uri}")
+        res = await self.call_tool(
+            "do_manual_integration",
+            uri=uri,
+            start_rt=start_rt,
+            end_rt=end_rt,
+        )
+        logger.debug(f"remote analysis_sample complete with {res.text}")
+        return res.text
+
     async def analysis_sample(self, test_D: Path, raw=True, full=False) -> str:
         uri = zip_and_upload(test_D, f"{self.server_url}/file/{test_D.name}.zip")
         logger.debug(f"test {test_D} uploaded to {self.server_url} with uri {uri}")
@@ -267,6 +281,24 @@ def analysis_examples(
                 else:
                     results.append(result)
             return results
+        finally:
+            await client.cleanup()
+
+    return asyncio.run(main())
+
+
+def manual_integration(
+    sample: Path,
+    start_rt: float,
+    end_rt: float,
+    mcp_server_url: str | None = None,
+):
+    async def main():
+        client = MCPClient(mcp_server_url=mcp_server_url)
+
+        try:
+            await client.connect_to_server()
+            return await client.manual_integration(sample, start_rt, end_rt)
         finally:
             await client.cleanup()
 

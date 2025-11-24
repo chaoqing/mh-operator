@@ -379,7 +379,6 @@ WITH
     --    AND joining again to get the Primary Hit's details
     component_json AS (SELECT c.BatchID,
                               c.SampleID,
-                              c.PrimaryHitID AS HitID,
                               c.RetentionTime,
                               JSON_OBJECT(
                                       'RetentionTime', c.RetentionTime,
@@ -403,6 +402,7 @@ WITH
                                       'B64Encoded_SpectrumAbundances', c.SpectrumAbundances,
                                       -- Use COALESCE with JSON() to handle potential NULLs from LEFT JOIN and ensure valid JSON array
                                       'LibraryCandidates', COALESCE(JSON(ha.candidates_json), JSON_ARRAY()),
+                                      'PrimaryHitID', c.PrimaryHitID,
                                       'IonPeaks', COALESCE(JSON(ipa.peaks_json), JSON_ARRAY())
                               ) AS component_data
                        FROM Component c

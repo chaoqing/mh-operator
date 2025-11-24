@@ -10,7 +10,11 @@ from zipfile import ZipFile
 import pytest
 
 from mh_operator.core.config import settings
-from mh_operator.core.mcp_client import analysis_examples, zip_and_upload
+from mh_operator.core.mcp_client import (
+    analysis_examples,
+    manual_integration,
+    zip_and_upload,
+)
 from mh_operator.core.mcp_server import extract_files_to_temp
 from mh_operator.routines.analysis_samples import merge_uaf_tables
 from mh_operator.utils.common import logger, map_concurrent, set_logger_level
@@ -108,6 +112,9 @@ def test_analysis_examples():
             zip_fp.extractall(tmpdir)
             logger.debug(f"Extracted {test_d} into {tmpdir}")
         tests = list(Path(tmpdir).glob("*/*.D"))[:5]
+
+        res = manual_integration(tests[0], 0.5, 1.0)
+        logger.debug(res)
 
         for test, text_result, raw_result in zip(
             tests,
