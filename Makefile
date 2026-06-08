@@ -84,6 +84,13 @@ check-safety: check-uv
 .PHONY: lint
 lint: test check-codestyle mypy check-safety
 
+#* Docker
+.PHONY: build-docker
+build-docker:
+	cd .docker && docker build -t mh-operator .
+	@echo "docker run -it --rm --init --tmpfs /opt/wine/drive_c/Temp:rw,noexec,nosuid,uid=1000,gid=1000 mh-operator bash"
+
+
 #* Cleaning
 .PHONY: pycache-remove
 pycache-remove:
